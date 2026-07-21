@@ -1,0 +1,32 @@
+name: "login-flow"
+description: "Vulnerable App Login Flow and Session Validation"
+targetUrl: "http://localhost:3001"
+variables:
+  TEST_USER_EMAIL: "user@example.com"
+  TEST_USER_PASSWORD: "password123"
+steps:
+  - action: goto
+    url: "/login"
+    description: "Navigate to the login page"
+  - action: fill
+    selector: "#email"
+    value: "${TEST_USER_EMAIL}"
+    description: "Fill email input"
+  - action: fill
+    selector: "#password"
+    value: "${TEST_USER_PASSWORD}"
+    description: "Fill password input"
+  - action: click
+    selector: "#login-btn"
+    description: "Click the login button"
+  - action: waitForNavigation
+    description: "Wait for the dashboard to load"
+  - action: assertText
+    selector: ".welcome"
+    text: "Welcome"
+    description: "Verify we are welcomed on the dashboard"
+  - action: goto
+    url: "/logout"
+    description: "Perform logout"
+  - action: waitForNavigation
+    description: "Wait for redirect to login"

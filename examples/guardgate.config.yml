@@ -1,0 +1,68 @@
+# GuardGate Configuration File
+# Save as guardgate.config.yml in your repository root
+
+# Global severity threshold for failing the CI gate (info, low, medium, high, critical)
+severityThreshold: medium
+
+# Output directory for reports and artifacts
+outputDir: .guardgate
+
+# Output format: console, json, or both
+outputFormat: both
+
+# ─── Secrets Scanner Configuration ─────────────────────────────────────
+secrets:
+  enabled: true
+  # File patterns to exclude from scanning (glob patterns)
+  allowlist:
+    - "*.env.example"
+    - "*.test.*"
+    - "*.spec.*"
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+  # Whether to scan git history
+  scanHistory: true
+  # Limit the depth of history scan (0 = all commits)
+  maxCommits: 50
+  # Threshold for Shannon entropy detection (0 to disable)
+  entropyThreshold: 4.5
+  # Custom regex rules to add
+  customRules: []
+
+# ─── SBOM / Dependency Scanner Configuration ───────────────────────────
+sbom:
+  enabled: true
+  severityThreshold: medium
+  # Specific ecosystems to scan (empty = auto-detect all)
+  # Supported: npm, pypi, go, maven, cargo
+  ecosystems:
+    - npm
+    - pypi
+  # Packages to ignore (e.g., name@version or just name)
+  ignoredPackages: []
+  # Include transitive dependencies in vulnerability scan
+  includeTransitive: true
+  # Generate CycloneDX JSON SBOM file
+  generateSbom: true
+
+# ─── E2E Security Testing Configuration ────────────────────────────────
+e2e:
+  enabled: true
+  # Target application URL to test against
+  targetUrl: "http://localhost:3001"
+  # Path to flow files (relative to config file)
+  flowFiles:
+    - "examples/flows/login-flow.yml"
+  # Target browser: chromium, firefox, webkit
+  browser: chromium
+  # Run headlessly or with a browser window
+  headless: true
+  # Timeout per step in milliseconds
+  stepTimeout: 15000
+  # Automatically take screenshots of failures in outputDir
+  screenshotOnFailure: true
+  # Global variables passed to flow templates
+  variables:
+    TEST_USER_EMAIL: "user@example.com"
+    TEST_USER_PASSWORD: "password123"

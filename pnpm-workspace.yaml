@@ -1,0 +1,9 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "examples/*"
+allowBuilds:
+  esbuild: false
+  sharp: true
+  unrs-resolver: true
+onlyBuiltDependencies: esbuild

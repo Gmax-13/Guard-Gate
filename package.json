@@ -1,0 +1,20 @@
+{
+  "name": "guardgate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A CI/CD security suite — secrets scanning, dependency vulnerability tracking, and security-focused E2E testing.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "test": "pnpm -r test",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "keywords": ["security", "ci-cd", "secrets-scanner", "sbom", "e2e-testing", "devsecops"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

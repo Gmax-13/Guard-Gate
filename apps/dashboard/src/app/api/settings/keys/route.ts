@@ -8,9 +8,9 @@
 
 import { NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'node:crypto';
-import { db } from '../../../../lib/db.js';
-import { apiKeys } from '../../../../lib/schema.js';
-import { getAuthUser } from '../../../../lib/auth.js';
+import { db } from '@/lib/db';
+import { apiKeys } from '@/lib/schema';
+import { getAuthUser } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET(req: Request) {

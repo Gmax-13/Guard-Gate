@@ -5,9 +5,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import { db } from '../../../lib/db.js';
-import { scanRuns } from '../../../lib/schema.js';
-import { getAuthUser } from '../../../lib/auth.js';
+import { db } from '@/lib/db';
+import { scanRuns } from '@/lib/schema';
+import { getAuthUser } from '@/lib/auth';
 import { eq, desc } from 'drizzle-orm';
 
 export async function GET(req: Request) {

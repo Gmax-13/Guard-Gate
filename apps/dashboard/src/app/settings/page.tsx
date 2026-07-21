@@ -17,6 +17,13 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [generatedKey, setGeneratedKey] = useState('');
   const [copied, setCopied] = useState(false);
+  const [origin, setOrigin] = useState('https://your-dashboard.com');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   const fetchKeys = async () => {
     try {
@@ -342,7 +349,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./packages/github-action
         with:
-          dashboard-url: '${window.location.origin}'
+          dashboard-url: '${origin}'
           dashboard-api-key: \`\${{ secrets.GUARDGATE_API_KEY }}\`
 `}
                 </pre>

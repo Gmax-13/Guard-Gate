@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyJWT } from './lib/auth.js';
+import { verifyJWT } from './lib/auth-edge';
 
 // Paths that do not require authentication
 const PUBLIC_PATHS = [

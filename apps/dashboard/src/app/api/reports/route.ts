@@ -7,11 +7,11 @@
 
 import { NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
-import { db } from '../../../lib/db.js';
-import { scanRuns, findings, apiKeys } from '../../../lib/schema.js';
-import { getAuthUser, verifyJWT } from '../../../lib/auth.js';
+import { db } from '@/lib/db';
+import { scanRuns, findings, apiKeys } from '@/lib/schema';
+import { getAuthUser, verifyJWT } from '@/lib/auth';
 import { eq, desc } from 'drizzle-orm';
-import type { ScanReport } from '../../../../packages/cli/src/types/report.js';
+import type { ScanReport } from '@/types/report';
 
 /**
  * Authenticate request using JWT or API Key.

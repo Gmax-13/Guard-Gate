@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Shield, LayoutDashboard, TrendingUp, Settings, LogOut, User } from 'lucide-react';
-import ThemeToggle from './ThemeToggle.js';
+import ThemeToggle from './ThemeToggle';
 import { useState, useEffect } from 'react';
 
 export default function Navigation() {

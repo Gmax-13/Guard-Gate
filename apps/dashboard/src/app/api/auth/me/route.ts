@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '../../../../lib/auth.js';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {

@@ -295,6 +295,8 @@ export default function DashboardHome() {
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Date</th>
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Secrets</th>
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>SBOM</th>
+                      <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Code</th>
+                      <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>API</th>
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>E2E</th>
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Overall</th>
                       <th style={{ padding: '16px 24px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}></th>
@@ -346,6 +348,16 @@ export default function DashboardHome() {
                         {/* SBOM module status */}
                         <td style={{ padding: '20px 24px' }}>
                           {getModuleBadge(run.summary.moduleStatus?.sbom)}
+                        </td>
+
+                        {/* Code module status */}
+                        <td style={{ padding: '20px 24px' }}>
+                          {getModuleBadge(run.summary.moduleStatus?.code)}
+                        </td>
+
+                        {/* API module status */}
+                        <td style={{ padding: '20px 24px' }}>
+                          {getModuleBadge(run.summary.moduleStatus?.api)}
                         </td>
 
                         {/* E2E module status */}

@@ -36,7 +36,7 @@ export default function RunDetailsPage({ params }: { params: Promise<{ id: strin
   const [run, setRun] = useState<ScanRun | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'secrets' | 'sbom' | 'e2e'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'secrets' | 'sbom' | 'code' | 'api' | 'e2e'>('all');
   const [expandedFindings, setExpandedFindings] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -208,7 +208,7 @@ export default function RunDetailsPage({ params }: { params: Promise<{ id: strin
 
           {/* Tab Navigation */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', gap: '24px' }}>
-            {(['all', 'secrets', 'sbom', 'e2e'] as const).map((tab) => {
+            {(['all', 'secrets', 'sbom', 'code', 'api', 'e2e'] as const).map((tab) => {
               const isActive = activeTab === tab;
               const count = tab === 'all' ? findings.length : findings.filter((f) => f.module === tab).length;
 

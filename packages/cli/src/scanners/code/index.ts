@@ -82,7 +82,20 @@ export class CodeScanner implements Scanner {
           }
         } catch (err) {
           logger.debug(`Failed to parse ${file}: ${err instanceof Error ? err.message : String(err)}`);
-          // Ignore parsing errors for non-compliant or unsupported files
+          // Fail the scan if a supported file throws an error during AST parsing
+          const relPath = relative(rootDir, file);
+          findingsBySeverity[Severity.CRITICAL]++;
+          findings.push({
+            id: `code-parse-error-${Date.now()}`,
+            module: 'code',
+            ruleId: 'parse-error',
+            ruleName: 'Parse Error',
+            severity: Severity.CRITICAL,
+            message: `Failed to parse file: ${err instanceof Error ? err.message : String(err)}`,
+            filePath: relPath,
+            lineNumber: 1,
+            evidence: []
+          });
         }
       }
 

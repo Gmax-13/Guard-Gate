@@ -22,12 +22,18 @@ export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[]
     true
   );
 
+  const variableDeclarations = new Map<string, ts.Node>();
+
   function getLineInfo(node: ts.Node) {
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
     return { line: line + 1, snippet: node.getText() };
   }
 
   function walk(node: ts.Node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      variableDeclarations.set(node.name.text, node.initializer);
+    }
+
     // Check for eval() calls
     if (ts.isCallExpression(node)) {
       const expr = node.expression;
@@ -73,7 +79,22 @@ export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[]
       if (isExecCall) {
         // If the argument is not a simple string literal, it's highly dangerous
         const arg = node.arguments[0];
-        if (arg && !ts.isStringLiteral(arg) && !ts.isNoSubstitutionTemplateLiteral(arg)) {
+        let isDangerous = false;
+        
+        if (arg) {
+          if (!ts.isStringLiteral(arg) && !ts.isNoSubstitutionTemplateLiteral(arg)) {
+            isDangerous = true;
+            // Taint tracking: if it's an identifier, check its initializer
+            if (ts.isIdentifier(arg)) {
+              const initializer = variableDeclarations.get(arg.text);
+              if (initializer && (ts.isStringLiteral(initializer) || ts.isNoSubstitutionTemplateLiteral(initializer))) {
+                isDangerous = false; // It was safely initialized with a static string
+              }
+            }
+          }
+        }
+
+        if (isDangerous) {
           const { line, snippet } = getLineInfo(node);
           findings.push({
             file: filePath,
@@ -92,11 +113,21 @@ export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[]
         (expr.name.text === 'query' || expr.name.text === 'execute')
       ) {
         const arg = node.arguments[0];
-        // If it's a template string with expressions (interpolation) or string concatenation (+)
-        if (
-          (arg && ts.isTemplateExpression(arg)) ||
-          (arg && ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken)
-        ) {
+        let isDynamic = false;
+        
+        if (arg) {
+          if (ts.isTemplateExpression(arg)) isDynamic = true;
+          else if (ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken) isDynamic = true;
+          else if (ts.isIdentifier(arg)) {
+            const initializer = variableDeclarations.get(arg.text);
+            if (initializer) {
+              if (ts.isTemplateExpression(initializer)) isDynamic = true;
+              else if (ts.isBinaryExpression(initializer) && initializer.operatorToken.kind === ts.SyntaxKind.PlusToken) isDynamic = true;
+            }
+          }
+        }
+        
+        if (isDynamic) {
           const { line, snippet } = getLineInfo(node);
           findings.push({
             file: filePath,

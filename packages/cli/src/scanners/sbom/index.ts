@@ -6,7 +6,7 @@
  */
 
 import type { Scanner, ScanContext } from '../../types/scanner.js';
-import type { ModuleResult } from '../../types/report.js';
+import type { ModuleResult, Finding } from '../../types/report.js';
 import { Severity, SEVERITY_WEIGHT } from '../../types/report.js';
 import type { GuardGateConfig } from '../../config/schema.js';
 import type { Dependency } from './types.js';
@@ -135,18 +135,27 @@ export class SbomScanner implements Scanner {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`SBOM scanner failed: ${message}`);
 
+      const errorFinding: Finding = {
+        id: `sbom-error-${Date.now()}`,
+        module: 'sbom',
+        ruleId: 'execution-error',
+        ruleName: 'SBOM Execution Error',
+        severity: Severity.HIGH,
+        message: `Failed to verify dependencies: ${message}`,
+      };
+
       return {
         module: 'sbom',
         passed: false,
-        findingCount: 0,
+        findingCount: 1,
         findingsBySeverity: {
           [Severity.INFO]: 0,
           [Severity.LOW]: 0,
           [Severity.MEDIUM]: 0,
-          [Severity.HIGH]: 0,
+          [Severity.HIGH]: 1,
           [Severity.CRITICAL]: 0,
         },
-        findings: [],
+        findings: [errorFinding],
         durationMs: Date.now() - startTime,
         error: message,
       };

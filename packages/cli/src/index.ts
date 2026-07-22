@@ -536,12 +536,24 @@ After creating any file, register its path in the user's \`guardgate.config.yml\
 - **Schema:**
 \`\`\`yaml
 name: "E2E Auth Bypass"
+targetUrl: "http://localhost:3000"
+plugins:
+  - "authBypassCheck"
+  - "idorCheck"
+  - "sessionCookieFlagsCheck"
+  - "logoutInvalidationCheck"
+  - "loginRateLimitCheck"
 steps:
-  - action: "goto" | "click" | "fill" | "assert" | "extract"
-    target: "CSS Selector or URL"
-    value: "Text to fill or assertion value"
-    plugin: "xss-reflected" | "sql-injection" | "csrf" | "auth-bypass" | "idor"
-    storeAs: "Variable name"
+  - action: "goto"
+    url: "/login"
+  - action: "fill"
+    selector: "#username"
+    value: "admin"
+  - action: "click"
+    selector: "#submit"
+  - action: "assertText"
+    selector: ".welcome"
+    text: "Welcome"
 \`\`\`
 
 ---

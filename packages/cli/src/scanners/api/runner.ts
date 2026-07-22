@@ -85,7 +85,17 @@ export async function runApiEndpoint(
     }
 
   } catch (err) {
-    logger.debug(`API request failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.debug(`API request failed: ${errMsg}`);
+    findings.push({
+      id: `api-unreachable-${Date.now()}`,
+      module: 'api',
+      ruleId: 'unreachable',
+      ruleName: 'API Unreachable',
+      severity: Severity.CRITICAL,
+      message: `API request failed (is the server running?): ${errMsg}`,
+      evidence: [{ type: 'request', label: 'URL', data: fullUrl }]
+    });
   }
 
   return findings;

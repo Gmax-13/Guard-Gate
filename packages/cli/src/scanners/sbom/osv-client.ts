@@ -72,15 +72,13 @@ export async function queryOsv(dep: Dependency): Promise<OsvVulnerability[]> {
     });
 
     if (!response.ok) {
-      logger.debug(`OSV query failed for ${dep.name}@${dep.version}: HTTP ${response.status}`);
-      return [];
+      throw new Error(`OSV query failed for ${dep.name}@${dep.version}: HTTP ${response.status}`);
     }
 
     const data = (await response.json()) as { vulns?: OsvVulnerability[] };
     return data.vulns ?? [];
   } catch (err) {
-    logger.debug(`OSV query error for ${dep.name}@${dep.version}: ${err}`);
-    return [];
+    throw new Error(`OSV query error for ${dep.name}@${dep.version}: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -112,13 +110,7 @@ export async function batchQueryOsv(deps: Dependency[]): Promise<OsvResult[]> {
       });
 
       if (!response.ok) {
-        logger.warn(`OSV batch query failed: HTTP ${response.status}`);
-        // Fall back to individual queries
-        for (const dep of batch) {
-          const vulns = await queryOsv(dep);
-          results.push({ dependency: dep, vulnerabilities: vulns });
-        }
-        continue;
+        throw new Error(`OSV batch query failed: HTTP ${response.status}`);
       }
 
       const data = (await response.json()) as {
@@ -132,7 +124,7 @@ export async function batchQueryOsv(deps: Dependency[]): Promise<OsvResult[]> {
         });
       }
     } catch (err) {
-      logger.warn(`OSV batch query error: ${err}`);
+      logger.warn(`OSV batch query error: ${err instanceof Error ? err.message : String(err)}. Falling back to individual queries...`);
       // Fall back to individual queries
       for (const dep of batch) {
         const vulns = await queryOsv(dep);

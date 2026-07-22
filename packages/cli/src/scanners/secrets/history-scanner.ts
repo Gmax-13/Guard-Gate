@@ -11,7 +11,7 @@ import type { SecretRule } from './rules.js';
 import { BUILT_IN_RULES } from './rules.js';
 import { findHighEntropyStrings } from './entropy.js';
 import { getCommitHistory, getCommitDiff, createGit } from '../../utils/git.js';
-import { isSkippedFile, createAllowlistFilter } from './allowlist.js';
+import { isSkippedFile, isSkippedDirectory, createAllowlistFilter } from './allowlist.js';
 import { logger } from '../../utils/logger.js';
 
 interface HistoryScanOptions {
@@ -36,7 +36,11 @@ function parseDiffAddedLines(
   for (const line of lines) {
     // Detect file header
     if (line.startsWith('+++ b/')) {
-      currentFile = line.slice(6);
+      // Git sometimes appends tabs/timestamps, and some badly named files have leading spaces
+      currentFile = line.slice(6).split('\t')[0].trim();
+      if (currentFile.startsWith('"') && currentFile.endsWith('"')) {
+        currentFile = currentFile.slice(1, -1);
+      }
       lineNumber = 0;
       continue;
     }
@@ -105,6 +109,10 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
       for (const { filePath, lineNumber, content } of addedLines) {
         // Skip lockfiles and generated manifests
         if (isSkippedFile(filePath)) continue;
+
+        // Skip directories in the always-skip list (like .guardgate, node_modules)
+        const dirParts = filePath.split(/[/\\]/);
+        if (dirParts.some((part) => isSkippedDirectory(part))) continue;
 
         // Skip files ignored by .guardgateignore / .gitignore
         if (ig.ignores(filePath)) continue;

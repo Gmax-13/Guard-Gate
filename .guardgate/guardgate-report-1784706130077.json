@@ -1,20 +1,20 @@
 {
   "version": "0.1.0",
-  "timestamp": "2026-07-22T07:33:56.371Z",
+  "timestamp": "2026-07-22T07:42:09.868Z",
   "repository": {
     "url": "https://github.com/Gmax-13/Guard-Gate.git",
     "branch": "main",
-    "commitSha": "ce862e79cfae6afd9b294940f6f120ad71dab9d0"
+    "commitSha": "fec5522838594dbbbe45f998e92726034c32e3e0"
   },
   "summary": {
     "passed": false,
-    "totalFindings": 12,
+    "totalFindings": 8,
     "findingsBySeverity": {
       "info": 0,
       "low": 0,
       "medium": 0,
-      "high": 10,
-      "critical": 2
+      "high": 8,
+      "critical": 0
     },
     "moduleStatus": {
       "secrets": false
@@ -24,13 +24,13 @@
     {
       "module": "secrets",
       "passed": false,
-      "findingCount": 12,
+      "findingCount": 8,
       "findingsBySeverity": {
         "info": 0,
         "low": 0,
         "medium": 0,
-        "high": 10,
-        "critical": 2
+        "high": 8,
+        "critical": 0
       },
       "findings": [
         {
@@ -104,48 +104,6 @@
         {
           "id": "secrets-history-0",
           "module": "secrets",
-          "ruleId": "database-url",
-          "ruleName": "Database Connection String",
-          "severity": "critical",
-          "message": "Detects database connection strings with credentials (found in git history): post********************t>",
-          "filePath": " .agents/Implementation docs/walkthrough_Phase1-8_V2.0.md\t",
-          "lineNumber": 25,
-          "commitHash": "ce898d098c0d5d968fbb32cfb5a761ac3fb0b944",
-          "evidence": [
-            {
-              "type": "snippet",
-              "label": "Commit diff line (redacted)",
-              "data": "DATABASE_URL=\"post********************t>/neondb?sslmode=require\""
-            }
-          ],
-          "metadata": {
-            "commitMessage": "Phases 6,7,8 completed"
-          }
-        },
-        {
-          "id": "secrets-history-1",
-          "module": "secrets",
-          "ruleId": "generic-secret",
-          "ruleName": "Generic Secret",
-          "severity": "high",
-          "message": "Detects generic secret assignments (found in git history): gene********************ey",
-          "filePath": " .agents/Implementation docs/walkthrough_Phase1-8_V2.0.md\t",
-          "lineNumber": 26,
-          "commitHash": "ce898d098c0d5d968fbb32cfb5a761ac3fb0b944",
-          "evidence": [
-            {
-              "type": "snippet",
-              "label": "Commit diff line (redacted)",
-              "data": "JWT_SECRET=\"gene********************ey\""
-            }
-          ],
-          "metadata": {
-            "commitMessage": "Phases 6,7,8 completed"
-          }
-        },
-        {
-          "id": "secrets-history-2",
-          "module": "secrets",
           "ruleId": "generic-password",
           "ruleName": "Hardcoded Password",
           "severity": "high",
@@ -165,7 +123,7 @@
           }
         },
         {
-          "id": "secrets-history-3",
+          "id": "secrets-history-1",
           "module": "secrets",
           "ruleId": "generic-password",
           "ruleName": "Hardcoded Password",
@@ -186,7 +144,7 @@
           }
         },
         {
-          "id": "secrets-history-4",
+          "id": "secrets-history-2",
           "module": "secrets",
           "ruleId": "generic-password",
           "ruleName": "Hardcoded Password",
@@ -207,7 +165,7 @@
           }
         },
         {
-          "id": "secrets-history-5",
+          "id": "secrets-history-3",
           "module": "secrets",
           "ruleId": "generic-password",
           "ruleName": "Hardcoded Password",
@@ -226,52 +184,10 @@
           "metadata": {
             "commitMessage": "Phase 1,2,3,4,5 completed"
           }
-        },
-        {
-          "id": "secrets-history-6",
-          "module": "secrets",
-          "ruleId": "database-url",
-          "ruleName": "Database Connection String",
-          "severity": "critical",
-          "message": "Detects database connection strings with credentials (found in git history): post********************t>",
-          "filePath": ".agents/Implementation docs/walkthrough_Phase1-8_V3.0.md\t",
-          "lineNumber": 25,
-          "commitHash": "54a019d4ebde3e4913ff67303c00d480b07fbe7c",
-          "evidence": [
-            {
-              "type": "snippet",
-              "label": "Commit diff line (redacted)",
-              "data": "DATABASE_URL=\"post********************t>/neondb?sslmode=require\""
-            }
-          ],
-          "metadata": {
-            "commitMessage": "Initial Commit"
-          }
-        },
-        {
-          "id": "secrets-history-7",
-          "module": "secrets",
-          "ruleId": "generic-secret",
-          "ruleName": "Generic Secret",
-          "severity": "high",
-          "message": "Detects generic secret assignments (found in git history): gene********************ey",
-          "filePath": ".agents/Implementation docs/walkthrough_Phase1-8_V3.0.md\t",
-          "lineNumber": 26,
-          "commitHash": "54a019d4ebde3e4913ff67303c00d480b07fbe7c",
-          "evidence": [
-            {
-              "type": "snippet",
-              "label": "Commit diff line (redacted)",
-              "data": "JWT_SECRET=\"gene********************ey\""
-            }
-          ],
-          "metadata": {
-            "commitMessage": "Initial Commit"
-          }
         }
       ],
-      "durationMs": 2023
+      "durationMs": 1284
     }
   ],
-  "durationMs": 2032
+  "durationMs": 1292
 }

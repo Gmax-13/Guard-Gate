@@ -6,4 +6,8 @@ allowBuilds:
   esbuild: false
   sharp: true
   unrs-resolver: true
-onlyBuiltDependencies: esbuild
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
+  - "@swc/core"

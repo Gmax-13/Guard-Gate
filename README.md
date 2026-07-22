@@ -23,6 +23,7 @@
 - **🧠 True Semantic AST Analysis (Code Scanner)**: Ditch the regexes. Write real JavaScript plugins that traverse the TypeScript Compiler API (`ts.isCallExpression`, etc.) to find deeply embedded logic flaws.
 - **📦 SBOM & Dependency Scanner**: Automatically audits your `package.json` against known CVEs.
 - **🔑 Secrets Scanner**: Fast and reliable scanning to ensure credentials and tokens never make it into your repository.
+- **📄 SARIF Output** *(v1.1.0)*: Generate [SARIF v2.1.0](https://sarifweb.azurewebsites.net/) reports that plug directly into GitHub's Security tab and GitLab's code-scanning UI — no custom dashboard needed.
 - **🤖 AI Agent Ready**: Out-of-the-box support for AI agents. Run `guardgate agent` to generate perfect workflow and rule schemas instantly.
 - **📊 Vercel Hosted Dashboard**: View aggregated security reports, metrics, and evidence through a beautiful, Vercel-hosted React interface.
 
@@ -68,6 +69,15 @@ guardgate scan api     # Run API DAST fuzzing
 guardgate scan e2e     # Run Playwright Browser tests
 guardgate scan sbom    # Run Dependency vulnerability scan
 guardgate scan secrets # Run Secrets scan
+```
+
+**Output Formats:**
+```bash
+guardgate scan --format json       # JSON report only
+guardgate scan --format console    # Console output only
+guardgate scan --format both       # Console + JSON (default)
+guardgate scan --format sarif      # SARIF v2.1.0 report only
+guardgate scan --format all        # Console + JSON + SARIF
 ```
 
 ### 4. Running the Dashboard
@@ -128,7 +138,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run GuardGate Scan
-        run: pnpm exec guardgate scan
+        run: pnpm exec guardgate scan --format all
         continue-on-error: true
 
       - name: Upload Report to Dashboard
@@ -144,7 +154,17 @@ jobs:
               -H "Content-Type: application/json" \
               -d @"$REPORT_FILE"
           fi
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .guardgate/
+          category: guardgate-security-scan
+        continue-on-error: true
 ```
+
+> **💡 SARIF + GitHub Security Tab**: When using `--format all` or `--format sarif`, GuardGate generates SARIF v2.1.0 reports. The `upload-sarif` step above pushes findings directly into your repository's **Security → Code scanning alerts** tab — no custom dashboard required.
 
 ---
 

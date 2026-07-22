@@ -119,8 +119,8 @@ export const guardgateConfigSchema = z
     severityThreshold: severityEnum.default('high'),
     /** Output directory for reports and artifacts */
     outputDir: z.string().default('.guardgate'),
-    /** Output format */
-    outputFormat: z.enum(['json', 'console', 'both']).default('both'),
+    /** Output format: json, console, both, sarif, or all (console + json + sarif) */
+    outputFormat: z.enum(['json', 'console', 'both', 'sarif', 'all']).default('both'),
     /** Module-specific configuration */
     secrets: secretsConfigSchema,
     sbom: sbomConfigSchema,

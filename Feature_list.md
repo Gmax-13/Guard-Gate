@@ -1,109 +1,106 @@
 # feature_list.md
 
-## Module 1 — Secrets Scanner
+## ✅ Completed Features (v1.0.0)
 
-### Must-have (MVP)
-- [ ] Scan working directory files for common secret patterns (AWS keys, API tokens, private keys, generic high-entropy strings)
-- [ ] Scan git commit history (not just current files) for secrets that were committed and later removed
-- [ ] Configurable ignore-list / allowlist (e.g., test fixtures, `.env.example`)
-- [ ] Output: list of findings with file path, line number, matched rule name, git commit hash (if from history), severity
-- [ ] Exit code non-zero on any finding (for CI gating)
+### Module 1 — Secrets Scanner
+- [x] Scan working directory files for common secret patterns (AWS keys, API tokens, private keys, generic high-entropy strings)
+- [x] Scan git commit history (not just current files) for secrets that were committed and later removed
+- [x] Configurable ignore-list / allowlist (e.g., test fixtures, `.env.example`)
+- [x] Output: list of findings with file path, line number, matched rule name, git commit hash (if from history), severity
+- [x] Exit code non-zero on any finding (for CI gating)
 
-### Nice-to-have (post-MVP)
-- [ ] Entropy-based detection tuning to reduce false positives
-- [ ] Custom rule definitions via config file
-- [ ] Auto-redaction in reports (never print the full secret value, only a masked preview)
+### Module 2 — SBOM / Dependency Vulnerability Tracker
+- [x] Detect project type/package manager (npm, pip, etc.)
+- [x] Generate SBOM in CycloneDX or SPDX format from the project's dependency manifest
+- [x] Cross-reference each dependency + version against OSV.dev for known CVEs
+- [x] Flag transitive (not just direct) dependency vulnerabilities
+- [x] Output: list of vulnerable packages with CVE ID, severity (CVSS score/rating), affected version range, fixed version (if available)
+- [x] Exit code non-zero if any finding above a configurable severity threshold
 
----
+### Module 3 — Security-Focused E2E Testing
+- [x] YAML/JSON DSL to define a flow: sequence of steps (`goto`, `fill`, `click`, `waitFor`, `assertText`, etc.)
+- [x] Playwright-based executor that runs a defined flow against a target URL
+- [x] Plugin interface: assertion plugins can run and report pass/fail + evidence
+- [x] Security Assertion Plugins: `authBypassCheck`, `idorCheck`, `sessionCookieFlagsCheck`, `logoutInvalidationCheck`, `loginRateLimitCheck`
 
-## Module 2 — SBOM / Dependency Vulnerability Tracker
+### Module 4 — Unified CLI
+- [x] Single CLI entry point with subcommands: `secrets`, `sbom`, `e2e`, `code`, `api`, and `scan` (all)
+- [x] Config file (`guardgate.config.yml`) for severity thresholds, ignore lists, target URLs, flow DSL paths
+- [x] Unified JSON output schema across all modules
+- [x] Human-readable console output (colored pass/fail summary)
+- [x] Single non-zero exit code if ANY module fails its threshold
 
-### Must-have (MVP)
-- [ ] Detect project type/package manager (npm, pip, etc. — pick 1-2 for MVP, e.g. npm + pip)
-- [ ] Generate SBOM in CycloneDX or SPDX format from the project's dependency manifest
-- [ ] Cross-reference each dependency + version against OSV.dev (or GitHub Advisory DB) for known CVEs
-- [ ] Flag transitive (not just direct) dependency vulnerabilities
-- [ ] Output: list of vulnerable packages with CVE ID, severity (CVSS score/rating), affected version range, fixed version (if available)
-- [ ] Exit code non-zero if any finding above a configurable severity threshold (e.g., High/Critical)
+### Module 5 — CI/CD Integration
+- [x] GitHub Action workflow that runs the CLI on push/PR
+- [x] Uploads full JSON report as a workflow artifact
+- [x] Configurable via workflow YAML inputs (severity threshold, which modules to run)
 
-### Nice-to-have (post-MVP)
-- [ ] Support additional ecosystems (Go, Java/Maven, Rust/Cargo)
-- [ ] Suggested remediation (which version to bump to)
-- [ ] License compliance flagging (e.g., GPL dependency in a commercial project)
+### Module 6 — Code Scanner (Semantic AST Analysis)
+- [x] TypeScript AST-based code scanning with pluggable JS rules
+- [x] Built-in rules for common insecure patterns
+- [x] Custom rule file support via config
 
----
+### Module 7 — API Fuzzer (DAST)
+- [x] YAML-based API flow definition
+- [x] Endpoint fuzzing with request/response validation
+- [x] Body matching (`matchBody`/`notMatchBody`) for accurate detection
 
-## Module 3 — Security-Focused E2E Testing
+### Module 8 — Web Dashboard
+- [x] List view of past scan runs (repo, commit, timestamp, pass/fail summary)
+- [x] Detail view per run: findings broken down by module
+- [x] Basic trend view: pass/fail count over time
+- [x] Ingests the unified JSON report via API endpoint
 
-### Layer 1 — Flow Runner (generic, security-agnostic)
-- [ ] YAML/JSON DSL to define a flow: sequence of steps (`goto`, `fill`, `click`, `waitFor`, `assertText`, etc.)
-- [ ] Playwright-based executor that runs a defined flow against a target URL
-- [ ] Plugin interface: after/during each step, registered assertion plugins can run and report pass/fail + evidence (screenshot, request/response data)
-- [ ] Flow runner has zero knowledge of "security" — it just executes steps and calls plugins
-
-### Layer 2 — Security Assertion Plugins (MVP set)
-- [ ] `authBypassCheck` — attempt to access a protected route without a valid session; flag if access is granted
-- [ ] `idorCheck` — attempt to access another user's resource by modifying an ID/parameter; flag if access is granted
-- [ ] `sessionCookieFlagsCheck` — verify session/auth cookies have `HttpOnly`, `Secure`, and appropriate `SameSite` attributes
-- [ ] `logoutInvalidationCheck` — verify that a session token is invalidated after logout (old token can no longer be used)
-- [ ] `loginRateLimitCheck` — verify repeated failed login attempts trigger rate-limiting/lockout
-- [ ] Output: pass/fail per check with evidence (screenshot + request/response snippet), tagged `type: security`
-
-### Nice-to-have (post-MVP — do not build now, but interface must support it)
-- [ ] Functional assertion plugins (`textPresentCheck`, `apiResponseMatchCheck`, `visualRegressionCheck`) tagged `type: functional`
-- [ ] Parallel flow execution
-- [ ] Recording a flow via browser interaction instead of hand-writing the DSL
-
----
-
-## Module 4 — Unified CLI
-
-### Must-have (MVP)
-- [ ] Single CLI entry point (e.g. `toolname scan`) with subcommands: `secrets`, `sbom`, `e2e`, and `all`
-- [ ] Config file (e.g. `toolname.config.yml`) to set: severity thresholds, ignore lists, target URLs for E2E, flow DSL file paths
-- [ ] Unified JSON output schema across all three modules (so dashboard/reporting can consume one format)
-- [ ] Human-readable console output (colored pass/fail summary) in addition to JSON
-- [ ] Single non-zero exit code if ANY module fails its threshold (for CI gating)
+### Module 9 — AI Agent Integration
+- [x] `guardgate agent` command outputs schemas for AI-generated workflows/rules
 
 ---
 
-## Module 5 — CI/CD Integration
+## 🔄 Pending Features (v1.1.0+)
 
-### Must-have (MVP)
-- [ ] GitHub Action (composite or Docker-based) that installs and runs the CLI's `all` command on push/PR
-- [ ] Posts a single unified summary as a PR comment or check status (pass/fail counts per module, links to full report)
-- [ ] Uploads full JSON report as a workflow artifact
-- [ ] Configurable via workflow YAML inputs (severity threshold, which modules to run)
+### v1.1.0 — SARIF Output Format 🚧 *In Progress*
+- [ ] Generate SARIF v2.1.0 formatted reports
+- [ ] `--format sarif` and `--format all` CLI options
+- [ ] GitHub Actions SARIF upload (findings appear in Security tab)
+- [ ] GitLab code-scanning UI compatibility
 
-### Nice-to-have (post-MVP)
-- [ ] GitLab CI / Bitbucket Pipelines adapters
-- [ ] Slack/Discord webhook notification on failure
+### v1.2.0 — Diff-Aware / Baseline Scanning
+- [ ] `guardgate scan --baseline <commit>` to only fail on new findings since a reference commit
+- [ ] Suppression of pre-existing findings in legacy codebases
+- [ ] Baseline fingerprinting for finding deduplication
+
+### v1.3.0 — Real Python AST Support
+- [ ] Tree-sitter-python or Python `ast` module integration for `.py` files
+- [ ] Python-specific rules: `os.system`/`subprocess` with `shell=True`, `pickle.loads`, `yaml.load` without `SafeLoader`, f-string SQL construction
+- [ ] Replace the TypeScript-parser-for-everything approach with per-language parsing
+
+### v1.4.0 — Live Secret Verification
+- [ ] Harmless verification calls for detected secrets (AWS `sts:GetCallerIdentity`, Stripe balance endpoint, GitHub `/user`)
+- [ ] Confirmed active credential vs revoked/expired/test-only classification
+- [ ] `--verify-secrets` CLI flag and config option
+
+### v1.5.0 — OpenAPI/Swagger Import for API Fuzzer
+- [ ] Parse OpenAPI 3.x / Swagger 2.0 specs
+- [ ] Auto-generate fuzz flows for every documented endpoint/parameter
+- [ ] `guardgate scan api --openapi <spec-path>` CLI option
+
+### v1.6.0 — Auth-Aware API Fuzzing
+- [ ] Bearer token / session cookie support for API fuzzer
+- [ ] Auth header injection in fuzz flows
+- [ ] Pre-flight login step for acquiring tokens
+
+### v1.7.0 — AI-Generated Remediation Diffs
+- [ ] For each finding, generate a suggested patch using LLM (Groq integration)
+- [ ] "Here's the vulnerable line, here's a suggested fix" in reports
+- [ ] Optional `--remediate` flag to generate fix PRs
 
 ---
 
-## Module 6 — Web Dashboard
-
-### Must-have (MVP)
-- [ ] List view of past scan runs (repo, commit, timestamp, pass/fail summary)
-- [ ] Detail view per run: findings broken down by module (secrets / SBOM / E2E-security), with evidence where applicable
-- [ ] Basic trend view: pass/fail count over time for a repo
-- [ ] Ingests the unified JSON report format from Module 4 (via API endpoint the CI Action posts to)
-
-### Nice-to-have (post-MVP)
-- [ ] Auth/login, multi-user/team support
-- [ ] Filtering/search across findings
-- [ ] Slack/email digest of weekly findings
-
----
-
-## Build Order (recommended for agent)
-1. Unified CLI skeleton + config loading + unified JSON output schema (build this first — everything else plugs into it)
-2. Secrets scanner module
-3. SBOM/dependency module
-4. E2E flow runner (Layer 1) + 1-2 security assertion plugins to validate the plugin interface works
-5. Remaining security assertion plugins
-6. GitHub Action wrapper
-7. Dashboard (backend API first, then frontend)
-
-## Definition of Done for MVP
-All "Must-have" items checked, demoable end-to-end on a sample vulnerable repo + sample vulnerable web app, running fully within GitHub Actions free tier, with dashboard showing at least 2 historical runs.
+## Build Order (v1.1.0+)
+1. SARIF Output Format (v1.1.0) — highest-ROI for CI adoption
+2. Diff-Aware / Baseline Scanning (v1.2.0) — enables adoption in legacy codebases
+3. Real Python AST Support (v1.3.0) — fills the .py scanning gap
+4. Live Secret Verification (v1.4.0) — upgrades from regex match to confirmed credential
+5. OpenAPI Import (v1.5.0) — usability multiplier for DAST
+6. Auth-Aware Fuzzing (v1.6.0) — reaches authenticated endpoints
+7. AI Remediation Diffs (v1.7.0) — differentiated feature vs competitors

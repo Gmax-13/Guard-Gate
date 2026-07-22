@@ -32,8 +32,8 @@ jobs:
         run: pnpm --filter guardgate build
 
       - name: Run GuardGate Scan
-        run: node packages/cli/dist/index.js scan
-        continue-on-error: true # Prevents the action from failing immediately if vulnerabilities are found so we can still upload
+        run: node packages/cli/dist/index.js scan --format all
+        continue-on-error: true # Don't fail the workflow immediately — we still need to upload reports
 
       - name: Upload Report to Dashboard
         if: always()
@@ -60,3 +60,11 @@ jobs:
             -H "Authorization: Bearer $GUARDGATE_API_KEY" \
             -H "Content-Type: application/json" \
             -d @"$REPORT_FILE"
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .guardgate/
+          category: guardgate-security-scan
+        continue-on-error: true # Don't fail if SARIF upload fails (e.g., GHAS not enabled)

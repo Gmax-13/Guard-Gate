@@ -1,6 +1,6 @@
 {
   "name": "guardgate-monorepo",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "description": "A CI/CD security suite — secrets scanning, dependency vulnerability tracking, and security-focused E2E testing.",
   "scripts": {

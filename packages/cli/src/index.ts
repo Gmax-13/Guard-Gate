@@ -28,11 +28,12 @@ import {
 } from './utils/git.js';
 import { formatReport } from './report/formatter.js';
 import { writeJsonReport } from './report/json-writer.js';
+import { writeSarifReport } from './report/sarif-writer.js';
 import type { Scanner, ScanContext } from './types/scanner.js';
 import type { ScanReport, ModuleResult } from './types/report.js';
 import { Severity, SEVERITY_WEIGHT } from './types/report.js';
 
-const VERSION = '0.1.0';
+const VERSION = '1.1.0';
 
 const program = new Command();
 
@@ -42,12 +43,15 @@ program
     chalk.bold.cyan('GuardGate') +
       ' — CI/CD security suite: secrets scanning, dependency vulnerabilities, and security E2E testing',
   )
-  .version(VERSION);
+  .version(VERSION)
+  .enablePositionalOptions();
 
 // ─── scan command group ───────────────────────────────────────────────
 const scanCmd = program
   .command('scan')
-  .description('Run security scans (runs all phases when no subcommand is given)');
+  .description('Run security scans (runs all phases when no subcommand is given)')
+  .enablePositionalOptions()
+  .passThroughOptions();
 
 /** Shared scan options */
 function addScanOptions(cmd: Command): Command {
@@ -57,7 +61,7 @@ function addScanOptions(cmd: Command): Command {
       '-s, --severity <level>',
       'Minimum severity threshold to fail (info|low|medium|high|critical)',
     )
-    .option('--format <format>', 'Output format (json|console|both)')
+    .option('--format <format>', 'Output format (json|console|both|sarif|all)')
     .option('--verbose', 'Enable verbose/debug output')
     .option('--quiet', 'Suppress all output except errors');
 }
@@ -84,7 +88,7 @@ async function resolveScanContext(
     config.severityThreshold = options.severity as Severity;
   }
   if (options.format) {
-    config.outputFormat = options.format as 'json' | 'console' | 'both';
+    config.outputFormat = options.format as 'json' | 'console' | 'both' | 'sarif' | 'all';
   }
 
   // Resolve output directory to absolute path under cwd and ensure it exists
@@ -192,11 +196,15 @@ async function runScanners(
   };
 
   // Output the report
-  if (config.outputFormat === 'console' || config.outputFormat === 'both') {
+  const fmt = config.outputFormat;
+  if (fmt === 'console' || fmt === 'both' || fmt === 'all') {
     formatReport(report);
   }
-  if (config.outputFormat === 'json' || config.outputFormat === 'both') {
+  if (fmt === 'json' || fmt === 'both' || fmt === 'all') {
     writeJsonReport(report, config.outputDir);
+  }
+  if (fmt === 'sarif' || fmt === 'all') {
+    writeSarifReport(report, config.outputDir);
   }
 
   return report;
@@ -383,11 +391,15 @@ async function runAllPhased(
   };
 
   // Output
-  if (config.outputFormat === 'console' || config.outputFormat === 'both') {
+  const fmt = config.outputFormat;
+  if (fmt === 'console' || fmt === 'both' || fmt === 'all') {
     formatReport(report);
   }
-  if (config.outputFormat === 'json' || config.outputFormat === 'both') {
+  if (fmt === 'json' || fmt === 'both' || fmt === 'all') {
     writeJsonReport(report, config.outputDir);
+  }
+  if (fmt === 'sarif' || fmt === 'all') {
+    writeSarifReport(report, config.outputDir);
   }
 
   process.exit(report.summary.passed ? 0 : 1);
@@ -486,7 +498,7 @@ Global Options:
   -c, --config <path>     Path to guardgate config file
   -s, --severity <level>  Minimum severity threshold to fail
                           (info|low|medium|high|critical)
-  --format <format>       Output format (json|console|both)
+  --format <format>       Output format (json|console|both|sarif|all)
   --verbose               Enable verbose/debug output
   --quiet                 Suppress all output except errors
   -h, --help              display help for command

@@ -1,5 +1,5 @@
 name: 'GuardGate Security Scan'
-description: 'Run GuardGate security scans (secrets, SBOM, E2E) on your codebase'
+description: 'Run GuardGate security scans (secrets, sbom, code, api, e2e) on your codebase'
 author: 'GuardGate'
 
 branding:
@@ -7,16 +7,24 @@ branding:
   color: 'blue'
 
 inputs:
+  guardgate-version:
+    description: 'Version of guardgate to install from npm (defaults to latest — pin this for a reproducible security gate, e.g. "1.2.1")'
+    required: false
+    default: 'latest'
   severity-threshold:
     description: 'Minimum severity to fail the check (info|low|medium|high|critical)'
     required: false
     default: 'high'
   modules:
-    description: 'Which scanner modules to run (secrets,sbom,e2e or all)'
+    description: 'Comma-separated scanner modules to run (secrets,sbom,code,api,e2e) or "all"'
     required: false
     default: 'all'
   config-path:
     description: 'Path to guardgate.config.yml'
+    required: false
+    default: ''
+  baseline:
+    description: 'Git ref to diff against for baseline/new-findings-only scanning (e.g. main)'
     required: false
     default: ''
   dashboard-url:
@@ -28,7 +36,7 @@ inputs:
     required: false
     default: ''
   target-url:
-    description: 'Target URL for E2E security testing'
+    description: 'Target URL for E2E and API security testing (sets e2e.targetUrl and api.targetUrl)'
     required: false
     default: ''
   node-version:
@@ -41,10 +49,10 @@ outputs:
     description: 'Whether all scans passed (true/false)'
     value: ${{ steps.scan.outputs.passed }}
   report-path:
-    description: 'Path to the JSON report file'
+    description: 'Path to the merged JSON report file'
     value: ${{ steps.scan.outputs.report-path }}
   findings-count:
-    description: 'Total number of findings'
+    description: 'Total number of findings across all modules run'
     value: ${{ steps.scan.outputs.findings-count }}
 
 runs:
@@ -55,81 +63,169 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 9
-
     - name: Install GuardGate CLI
       shell: bash
       run: |
-        cd ${{ github.action_path }}/../..
-        pnpm install --frozen-lockfile
-        pnpm --filter guardgate build
+        mkdir -p .guardgate-cli
+        cd .guardgate-cli
+        npm install --no-save --silent "guardgate@${{ inputs.guardgate-version }}" yaml
+        echo "Installed guardgate version:"
+        ./node_modules/.bin/guardgate --version
+
+    - name: Determine modules to run
+      id: modules
+      shell: bash
+      run: |
+        if [ "${{ inputs.modules }}" = "all" ]; then
+          echo "list=secrets,sbom,code,api,e2e" >> "$GITHUB_OUTPUT"
+        else
+          echo "list=${{ inputs.modules }}" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Install Playwright browsers (for E2E)
-      if: contains(inputs.modules, 'e2e') || inputs.modules == 'all'
+      if: contains(steps.modules.outputs.list, 'e2e')
       shell: bash
-      run: npx playwright install chromium --with-deps
+      run: |
+        cd .guardgate-cli
+        npx playwright install chromium --with-deps
+
+    - name: Prepare effective config (target-url override)
+      id: config
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.target-url }}" ]; then
+          cat > .guardgate-cli/merge-config.js << 'EOF'
+        const fs = require('fs');
+        const YAML = require('yaml');
+
+        const inputConfigPath = process.argv[2] || '';
+        const targetUrl = process.argv[3];
+        const outPath = process.argv[4];
+
+        let cfg = {};
+        if (inputConfigPath && fs.existsSync(inputConfigPath)) {
+          cfg = YAML.parse(fs.readFileSync(inputConfigPath, 'utf-8')) || {};
+        }
+
+        cfg.e2e = { ...(cfg.e2e || {}), targetUrl };
+        cfg.api = { ...(cfg.api || {}), targetUrl };
+
+        fs.writeFileSync(outPath, YAML.stringify(cfg));
+        console.log(`Wrote effective config to ${outPath}`);
+        EOF
+          node .guardgate-cli/merge-config.js \
+            "${{ inputs.config-path }}" \
+            "${{ inputs.target-url }}" \
+            ".guardgate-cli/effective-config.yml"
+          echo "path=.guardgate-cli/effective-config.yml" >> "$GITHUB_OUTPUT"
+        else
+          echo "path=${{ inputs.config-path }}" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Run GuardGate Scan
       id: scan
       shell: bash
       run: |
-        # Build the command
-        CMD="node ${{ github.action_path }}/../../packages/cli/dist/index.js scan"
-        
-        # Select modules
-        if [ "${{ inputs.modules }}" = "all" ]; then
-          CMD="$CMD all"
-        else
-          IFS=',' read -ra MODULES <<< "${{ inputs.modules }}"
-          for module in "${MODULES[@]}"; do
-            CMD="$CMD $module"
-          done
-        fi
-        
-        # Add options
-        CMD="$CMD --severity ${{ inputs.severity-threshold }}"
-        CMD="$CMD --format json"
-        CMD="$CMD --output .guardgate"
-        
-        if [ -n "${{ inputs.config-path }}" ]; then
-          CMD="$CMD --config ${{ inputs.config-path }}"
-        fi
-        
-        # Run the scan (don't fail the step yet)
         set +e
-        eval $CMD
-        EXIT_CODE=$?
+        GUARDGATE_BIN=".guardgate-cli/node_modules/.bin/guardgate"
+        CONFIG_PATH="${{ steps.config.outputs.path }}"
+        IFS=',' read -ra MODULE_LIST <<< "${{ steps.modules.outputs.list }}"
+
+        OVERALL_EXIT=0
+        REPORT_PATHS=()
+
+        for module in "${MODULE_LIST[@]}"; do
+          echo "::group::guardgate scan $module"
+
+          CMD=("$GUARDGATE_BIN" scan "$module" --severity "${{ inputs.severity-threshold }}" --format json)
+          if [ -n "$CONFIG_PATH" ]; then
+            CMD+=(--config "$CONFIG_PATH")
+          fi
+          if [ -n "${{ inputs.baseline }}" ]; then
+            CMD+=(--baseline "${{ inputs.baseline }}")
+          fi
+
+          "${CMD[@]}"
+          MODULE_EXIT=$?
+          if [ $MODULE_EXIT -ne 0 ]; then
+            OVERALL_EXIT=1
+          fi
+
+          MODULE_REPORT=$(ls -t .guardgate/guardgate-report-*.json 2>/dev/null | head -1)
+          if [ -n "$MODULE_REPORT" ]; then
+            REPORT_PATHS+=("$MODULE_REPORT")
+          else
+            echo "::warning::No report produced for module '$module' (exit code $MODULE_EXIT)"
+          fi
+
+          echo "::endgroup::"
+        done
+
         set -e
-        
-        # Find the generated report
-        REPORT_PATH=$(ls -t .guardgate/guardgate-report-*.json 2>/dev/null | head -1)
-        
-        if [ -n "$REPORT_PATH" ]; then
-          echo "report-path=$REPORT_PATH" >> $GITHUB_OUTPUT
-          
-          # Extract summary data from the report
-          FINDINGS=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT_PATH','utf-8')); console.log(r.summary.totalFindings)")
-          PASSED=$(node -e "const r=JSON.parse(require('fs').readFileSync('$REPORT_PATH','utf-8')); console.log(r.summary.passed)")
-          
-          echo "findings-count=$FINDINGS" >> $GITHUB_OUTPUT
-          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+
+        # Merge all per-module reports into a single combined report
+        cat > .guardgate-cli/merge-reports.js << 'NODEEOF'
+        const fs = require('fs');
+        const reportPaths = process.argv.slice(2, -1);
+        const outPath = process.argv[process.argv.length - 1];
+
+        const reports = reportPaths.map(p => JSON.parse(fs.readFileSync(p, 'utf-8')));
+
+        const merged = {
+          version: reports[0]?.version ?? 'unknown',
+          timestamp: new Date().toISOString(),
+          repository: reports[0]?.repository ?? {},
+          summary: {
+            passed: reports.every(r => r.summary?.passed !== false),
+            totalFindings: reports.reduce((sum, r) => sum + (r.summary?.totalFindings ?? 0), 0),
+            findingsBySeverity: {},
+            moduleStatus: {},
+          },
+          modules: [],
+          durationMs: reports.reduce((sum, r) => sum + (r.durationMs ?? 0), 0),
+        };
+
+        const severities = ['info', 'low', 'medium', 'high', 'critical'];
+        for (const s of severities) merged.summary.findingsBySeverity[s] = 0;
+
+        for (const r of reports) {
+          for (const mod of r.modules ?? []) {
+            merged.modules.push(mod);
+            merged.summary.moduleStatus[mod.module] = mod.passed;
+            for (const s of severities) {
+              merged.summary.findingsBySeverity[s] += mod.findingsBySeverity?.[s] ?? 0;
+            }
+          }
+        }
+
+        fs.writeFileSync(outPath, JSON.stringify(merged, null, 2));
+        console.log(`Merged ${reports.length} report(s) into ${outPath}`);
+        NODEEOF
+
+        MERGED_PATH=".guardgate/guardgate-report-merged.json"
+        if [ ${#REPORT_PATHS[@]} -gt 0 ]; then
+          node .guardgate-cli/merge-reports.js "${REPORT_PATHS[@]}" "$MERGED_PATH"
+          FINDINGS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$MERGED_PATH','utf-8')).summary.totalFindings)")
+          PASSED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$MERGED_PATH','utf-8')).summary.passed)")
+          echo "report-path=$MERGED_PATH" >> "$GITHUB_OUTPUT"
+          echo "findings-count=$FINDINGS" >> "$GITHUB_OUTPUT"
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
         else
-          echo "report-path=" >> $GITHUB_OUTPUT
-          echo "findings-count=0" >> $GITHUB_OUTPUT
-          echo "passed=false" >> $GITHUB_OUTPUT
+          echo "report-path=" >> "$GITHUB_OUTPUT"
+          echo "findings-count=0" >> "$GITHUB_OUTPUT"
+          echo "passed=false" >> "$GITHUB_OUTPUT"
         fi
-        
-        exit $EXIT_CODE
+
+        exit $OVERALL_EXIT
 
     - name: Upload Report Artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: guardgate-report
-        path: .guardgate/guardgate-report-*.json
+        path: |
+          .guardgate/guardgate-report-*.json
+          .guardgate/guardgate-report-merged.json
         if-no-files-found: ignore
 
     - name: Post PR Comment
@@ -139,62 +235,61 @@ runs:
         script: |
           const fs = require('fs');
           const reportPath = '${{ steps.scan.outputs.report-path }}';
-          
+
           if (!reportPath || !fs.existsSync(reportPath)) {
             console.log('No report found, skipping PR comment');
             return;
           }
-          
+
           const report = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
           const passed = report.summary.passed;
           const totalFindings = report.summary.totalFindings;
-          
-          // Build the comment body
+
           const statusIcon = passed ? '✅' : '❌';
           const statusText = passed ? 'PASSED' : 'FAILED';
-          
+
           let body = `## ${statusIcon} GuardGate Security Scan — ${statusText}\n\n`;
           body += `| Module | Status | Findings |\n`;
           body += `|--------|--------|----------|\n`;
-          
+
           for (const mod of report.modules) {
             const modIcon = mod.passed ? '✅' : '❌';
             const modName = mod.module.toUpperCase();
             body += `| ${modName} | ${modIcon} ${mod.passed ? 'Pass' : 'Fail'} | ${mod.findingCount} |\n`;
           }
-          
+
           body += `\n**Total findings:** ${totalFindings}\n`;
           body += `**Duration:** ${(report.durationMs / 1000).toFixed(1)}s\n`;
-          body += `**Commit:** \`${report.repository.commitSha.substring(0, 8)}\`\n\n`;
-          
-          // Top 5 findings
+          if (report.repository?.commitSha) {
+            body += `**Commit:** \`${report.repository.commitSha.substring(0, 8)}\`\n\n`;
+          }
+
           if (totalFindings > 0) {
             body += `### Top Findings\n\n`;
             const allFindings = report.modules.flatMap(m => m.findings);
             const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
             allFindings.sort((a, b) => (severityOrder[a.severity] ?? 5) - (severityOrder[b.severity] ?? 5));
-            
+
             for (const finding of allFindings.slice(0, 5)) {
               const sevEmoji = { critical: '🔴', high: '🟠', medium: '🟡', low: '🔵', info: 'ℹ️' };
               body += `- ${sevEmoji[finding.severity] || '⚪'} **${finding.severity.toUpperCase()}** — ${finding.ruleName}: ${finding.message}\n`;
             }
-            
+
             if (allFindings.length > 5) {
               body += `\n_...and ${allFindings.length - 5} more. See the full report artifact._\n`;
             }
           }
-          
+
           body += `\n---\n_Scanned by [GuardGate](https://github.com/your-org/guardgate)_`;
-          
-          // Find existing comment to update
+
           const { data: comments } = await github.rest.issues.listComments({
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number,
           });
-          
+
           const existingComment = comments.find(c => c.body.includes('GuardGate Security Scan'));
-          
+
           if (existingComment) {
             await github.rest.issues.updateComment({
               owner: context.repo.owner,

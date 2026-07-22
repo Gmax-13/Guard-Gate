@@ -34,7 +34,7 @@ import type { Scanner, ScanContext } from './types/scanner.js';
 import type { ScanReport, ModuleResult } from './types/report.js';
 import { Severity, SEVERITY_WEIGHT } from './types/report.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 
 const program = new Command();
 

@@ -11,10 +11,12 @@ import type { SecretRule } from './rules.js';
 import { BUILT_IN_RULES } from './rules.js';
 import { findHighEntropyStrings } from './entropy.js';
 import { getCommitHistory, getCommitDiff, createGit } from '../../utils/git.js';
+import { isSkippedFile, createAllowlistFilter } from './allowlist.js';
 import { logger } from '../../utils/logger.js';
 
 interface HistoryScanOptions {
   rootDir: string;
+  allowlistPatterns: string[];
   maxCommits: number;
   entropyThreshold: number;
   customRules: Array<{ id: string; name: string; regex: string; severity: string }>;
@@ -66,7 +68,7 @@ function parseDiffAddedLines(
  * Scan git history for secrets in past commits.
  */
 export async function scanHistory(options: HistoryScanOptions): Promise<Finding[]> {
-  const { rootDir, maxCommits, entropyThreshold, customRules } = options;
+  const { rootDir, allowlistPatterns, maxCommits, entropyThreshold, customRules } = options;
   const findings: Finding[] = [];
 
   // Compile all rules
@@ -85,6 +87,9 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
     }
   }
 
+  // Build the ignore filter (includes .gitignore, .guardgateignore, and custom config patterns)
+  const ig = createAllowlistFilter(rootDir, allowlistPatterns);
+
   // Get commit history
   const commits = await getCommitHistory(rootDir, maxCommits);
   logger.debug(`Scanning ${commits.length} commits in history`);
@@ -98,6 +103,12 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
       const addedLines = parseDiffAddedLines(diff);
 
       for (const { filePath, lineNumber, content } of addedLines) {
+        // Skip lockfiles and generated manifests
+        if (isSkippedFile(filePath)) continue;
+
+        // Skip files ignored by .guardgateignore / .gitignore
+        if (ig.ignores(filePath)) continue;
+
         // Skip binary-looking content
         if (content.includes('\0')) continue;
 

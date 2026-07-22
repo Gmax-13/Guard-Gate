@@ -17,6 +17,7 @@ import {
   createAllowlistFilter,
   isBinaryFile,
   isSkippedDirectory,
+  isSkippedFile,
 } from './allowlist.js';
 import { logger } from '../../utils/logger.js';
 
@@ -76,6 +77,9 @@ export async function scanFiles(options: FileScanOptions): Promise<Finding[]> {
 
     // Skip binary files
     if (isBinaryFile(relativePath)) continue;
+
+    // Skip lockfiles and other generated files
+    if (isSkippedFile(relativePath)) continue;
 
     // Skip directories in the always-skip list
     const dirParts = relativePath.split(/[/\\]/);

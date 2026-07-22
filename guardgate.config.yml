@@ -1,0 +1,29 @@
+severityThreshold: high
+outputFormat: both
+secrets:
+  enabled: true
+  # These are additional patterns that will be appended to the allowlist
+  # But we're primarily using .guardgateignore for exclusions
+  allowlist:
+    - "*.env.example"
+    - "*.test.*"
+    - "*.spec.*"
+    - "__tests__/**"
+    - "__mocks__/**"
+    - "test/**"
+    - "tests/**"
+    - "fixtures/**"
+  scanHistory: true
+  maxCommits: 100
+  entropyThreshold: 4.5
+sbom:
+  enabled: true
+  severityThreshold: high
+  includeTransitive: true
+  generateSbom: true
+  sbomFormat: cyclonedx
+e2e:
+  enabled: true
+  browser: chromium
+  headless: true
+  screenshotOnFailure: true

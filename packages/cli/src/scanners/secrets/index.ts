@@ -43,6 +43,7 @@ export class SecretsScanner implements Scanner {
           logger.info('Scanning git history...');
           historyFindings = await scanHistory({
             rootDir: context.rootDir,
+            allowlistPatterns: secretsConfig.allowlist,
             maxCommits: secretsConfig.maxCommits,
             entropyThreshold: secretsConfig.entropyThreshold,
             customRules: secretsConfig.customRules,

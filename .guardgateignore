@@ -1,0 +1,11 @@
+# GuardGate Ignore List
+# Files and directories to exclude from all security scans.
+
+# Walkthrough docs contain connection string templates and dummy data
+.agents/Implementation docs/walkthrough*.md
+
+# Dummy connection string for db setup
+apps/dashboard/src/lib/db.ts
+
+# Scanner regex definitions contain strings that match their own rules
+packages/cli/src/scanners/secrets/rules.ts

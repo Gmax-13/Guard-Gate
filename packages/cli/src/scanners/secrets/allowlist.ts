@@ -25,6 +25,24 @@ const BINARY_EXTENSIONS = new Set([
   '.lock', // lock files are generally safe
 ]);
 
+/** Files to always skip by exact basename (lockfiles, generated manifests) */
+const ALWAYS_SKIP_FILES = new Set([
+  'pnpm-lock.yaml',
+  'package-lock.json',
+  'yarn.lock',
+  'bun.lockb',
+  'Gemfile.lock',
+  'Cargo.lock',
+  'composer.lock',
+  'poetry.lock',
+  'Pipfile.lock',
+  'go.sum',
+  'flake.lock',
+  'packages.lock.json',
+  'gradle.lockfile',
+  '.terraform.lock.hcl',
+]);
+
 /** Directories to always skip */
 const ALWAYS_SKIP_DIRS = new Set([
   'node_modules',
@@ -60,6 +78,17 @@ export function createAllowlistFilter(
     }
   }
 
+  // Load .guardgateignore if it exists
+  const guardgateignorePath = join(rootDir, '.guardgateignore');
+  if (existsSync(guardgateignorePath)) {
+    try {
+      const content = readFileSync(guardgateignorePath, 'utf-8');
+      ig.add(content);
+    } catch {
+      // Ignore read errors
+    }
+  }
+
   // Add custom allowlist patterns from config
   if (customPatterns.length > 0) {
     ig.add(customPatterns);
@@ -81,6 +110,15 @@ export function isBinaryFile(filePath: string): boolean {
  */
 export function isSkippedDirectory(dirName: string): boolean {
   return ALWAYS_SKIP_DIRS.has(dirName);
+}
+
+/**
+ * Check if a file should always be skipped by its basename
+ * (lockfiles, generated manifests with integrity hashes, etc.).
+ */
+export function isSkippedFile(filePath: string): boolean {
+  const name = filePath.split(/[/\\]/).pop() ?? '';
+  return ALWAYS_SKIP_FILES.has(name);
 }
 
 /**

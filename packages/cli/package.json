@@ -1,5 +1,5 @@
 {
-  "name": "@guardgate/cli",
+  "name": "guardgate",
   "version": "0.1.0",
   "description": "GuardGate CLI — secrets scanning, SBOM/CVE tracking, and security E2E testing",
   "type": "module",

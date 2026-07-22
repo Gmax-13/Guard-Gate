@@ -529,8 +529,9 @@ After creating any file, register its path in the user's \`guardgate.config.yml\
 
 ---
 
-### 1. E2E Security Tests (Browser)
-- **File Naming:** \`.guardgate/flows/guardgate_e2e_[action].yml\`
+### 1. E2E Tests (Browser Functionality & Security)
+- **Scope:** Create flows that test the ENTIRE functionality of the application (e.g. standard user journeys, checkouts, form submissions) AND embed security assertions within them.
+- **File Naming:** .guardgate/flows/guardgate_e2e_[action].yml
 - **Registration:** Add to \`e2e.flowFiles\` in \`guardgate.config.yml\`.
 - **Schema:**
 \`\`\`yaml
@@ -592,9 +593,10 @@ module.exports = {
 
 ## Instructions for the Agent
 1. **Analyze**: Explore the project to understand the routes, APIs, and codebase quirks.
-2. **Generate**: Create the necessary YAML files for the requested module (or all three).
-3. **Register**: Update \`guardgate.config.yml\` to include your new YAML files.
-4. **Run**: Propose to the user to run \`guardgate scan [module]\` to verify.
+2. **Generate**: Create the necessary YAML/JS files for the requested module (or all three).
+3. **Register**: Update guardgate.config.yml to include your new files.
+4. **CI/CD**: If requested, create a .github/workflows/guardgate.yml file using the guardgate action to run on push/PR.
+5. **Run**: Propose to the user to run guardgate scan to verify.
 `;
     console.log(prompt.trim());
   });

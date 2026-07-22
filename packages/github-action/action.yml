@@ -65,7 +65,7 @@ runs:
       run: |
         cd ${{ github.action_path }}/../..
         pnpm install --frozen-lockfile
-        pnpm --filter @guardgate/cli build
+        pnpm --filter guardgate build
 
     - name: Install Playwright browsers (for E2E)
       if: contains(inputs.modules, 'e2e') || inputs.modules == 'all'

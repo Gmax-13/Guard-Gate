@@ -52,15 +52,20 @@ export class SastScanner implements Scanner {
             findingsBySeverity[severity]++;
             findings.push({
               id: `sast-${f.type.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-              title: f.type,
-              description: f.message,
+              module: 'sast',
+              ruleId: f.type.toLowerCase().replace(/\s+/g, '-'),
+              ruleName: f.type,
               severity,
-              location: {
-                file: relPath,
-                line: f.line,
-              },
-              remediation: 'Review the flagged code and ensure variables are sanitized or use safe alternatives.',
-              snippet: f.snippet,
+              message: f.message,
+              filePath: relPath,
+              lineNumber: f.line,
+              evidence: [
+                {
+                  type: 'snippet',
+                  label: 'Offending Code',
+                  data: f.snippet,
+                }
+              ]
             });
           }
         } catch (err) {

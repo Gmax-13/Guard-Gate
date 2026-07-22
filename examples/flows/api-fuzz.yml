@@ -1,0 +1,12 @@
+name: "API SQL Injection Test"
+endpoints:
+  - method: "POST"
+    path: "/api/login"
+    headers:
+      Content-Type: "application/json"
+    body:
+      username: "admin' OR '1'='1"
+      password: "foo"
+    assert:
+      status: 200
+      plugin: "sql-injection"

@@ -221,6 +221,10 @@ async function loadScannerModule(name: string): Promise<Scanner | null> {
         const { SastScanner } = await import('./scanners/sast/index.js');
         return new SastScanner();
       }
+      case 'api': {
+        const { ApiScanner } = await import('./scanners/api/index.js');
+        return new ApiScanner();
+      }
       case 'e2e': {
         const { E2eScanner } = await import('./scanners/e2e/index.js');
         return new E2eScanner();
@@ -248,6 +252,7 @@ async function runAllPhased(
     { name: 'secrets', label: 'Secrets Scanner' },
     { name: 'sbom',    label: 'SBOM / Dependency Scanner' },
     { name: 'sast',    label: 'SAST (Static Analysis)' },
+    { name: 'api',     label: 'API Security Fuzzer (DAST)' },
     { name: 'e2e',     label: 'E2E Security Tests' },
   ];
 
@@ -429,6 +434,20 @@ addScanOptions(
 ).action(async (options) => {
   const { context, config } = await resolveScanContext(options);
   const scanner = await loadScannerModule('sast');
+  if (!scanner) process.exit(1);
+
+  const report = await runScanners([scanner], context, config);
+  process.exit(report.summary.passed ? 0 : 1);
+});
+
+// ─── scan api ────────────────────────────────────────────────────────
+addScanOptions(
+  scanCmd
+    .command('api')
+    .description('Fuzz backend API endpoints for vulnerabilities (DAST)'),
+).action(async (options) => {
+  const { context, config } = await resolveScanContext(options);
+  const scanner = await loadScannerModule('api');
   if (!scanner) process.exit(1);
 
   const report = await runScanners([scanner], context, config);

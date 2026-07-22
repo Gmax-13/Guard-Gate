@@ -107,7 +107,7 @@ export function parseAndScanFile(filePath: string): SastFinding[] {
     }
 
     // Check for dangerouslySetInnerHTML (React)
-    if (ts.isJsxAttribute(node) && node.name.text === 'dangerouslySetInnerHTML') {
+    if (ts.isJsxAttribute(node) && node.name.getText() === 'dangerouslySetInnerHTML') {
       const { line, snippet } = getLineInfo(node);
       findings.push({
         file: filePath,

@@ -7,7 +7,7 @@ dist/
 build/
 .next/
 out/
-
+.guardgate
 # Environment
 .env
 .env.local

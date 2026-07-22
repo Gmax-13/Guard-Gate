@@ -66,3 +66,21 @@ e2e:
   variables:
     TEST_USER_EMAIL: "user@example.com"
     TEST_USER_PASSWORD: "password123"
+
+# ─── API Security Fuzzer (DAST) Configuration ──────────────────────────
+api:
+  enabled: true
+  targetUrl: "http://localhost:3001"
+  flowFiles:
+    - "flows/api-fuzz.yml"
+  timeout: 10000
+
+# ─── SAST Static Analysis Configuration ────────────────────────────────
+sast:
+  enabled: true
+  severityThreshold: medium
+  extensions: [".js", ".ts"]
+  exclude:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"

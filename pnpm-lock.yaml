@@ -96,7 +96,7 @@ importers:
         specifier: ^1.45.0
         version: 1.61.1
       simple-git:
-        specifier: ^3.25.0
+        specifier: ^3.36.0
         version: 3.36.0
       yaml:
         specifier: ^2.4.5

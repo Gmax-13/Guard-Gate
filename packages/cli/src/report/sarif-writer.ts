@@ -187,22 +187,22 @@ function moduleResultToSarifRun(
       message: { text: finding.message },
     };
 
-    // Add physical location if file path is available
-    if (finding.filePath) {
-      result.locations = [
-        {
-          physicalLocation: {
-            artifactLocation: {
-              uri: toSarifUri(finding.filePath),
-              uriBaseId: '%SRCROOT%',
-            },
-            ...(finding.lineNumber
-              ? { region: { startLine: finding.lineNumber } }
-              : {}),
+    // Add physical location (fallback to '.' if not file-specific so GitHub accepts it)
+    const uri = finding.filePath ? toSarifUri(finding.filePath) : '.';
+    
+    result.locations = [
+      {
+        physicalLocation: {
+          artifactLocation: {
+            uri,
+            uriBaseId: '%SRCROOT%',
           },
+          ...(finding.lineNumber
+            ? { region: { startLine: finding.lineNumber } }
+            : {}),
         },
-      ];
-    }
+      },
+    ];
 
     // Add partial fingerprints for deduplication
     const partialFingerprints: Record<string, string> = {};

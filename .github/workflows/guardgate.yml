@@ -27,8 +27,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build CLI
+        run: pnpm --filter @guardgate/cli build
+
       - name: Run GuardGate Scan
-        run: pnpm exec guardgate scan
+        run: node packages/cli/dist/index.js scan
         continue-on-error: true # Prevents the action from failing immediately if vulnerabilities are found so we can still upload
 
       - name: Upload Report to Dashboard

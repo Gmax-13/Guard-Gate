@@ -29,7 +29,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build CLI
-        run: pnpm --filter @guardgate/cli build
+        run: pnpm --filter guardgate build
 
       - name: Run GuardGate Scan
         run: node packages/cli/dist/index.js scan

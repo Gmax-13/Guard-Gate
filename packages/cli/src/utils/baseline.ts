@@ -111,7 +111,8 @@ export async function getChangedFiles(
     return new Set(files);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.warn(`Failed to get changed files from baseline '${baselineRef}': ${message}`);
+    const cleanMsg = message.split('\n').find(l => l.trim().length > 0) ?? 'Unknown error';
+    logger.warn(`Failed to get changed files from baseline '${baselineRef}': ${cleanMsg.trim()}`);
     // If diff fails, treat everything as new (safe fallback)
     return new Set(['*']);
   }
@@ -161,7 +162,8 @@ export async function getChangedLineRanges(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.warn(`Failed to parse diff line ranges from baseline '${baselineRef}': ${message}`);
+    const cleanMsg = message.split('\n').find(l => l.trim().length > 0) ?? 'Unknown error';
+    logger.warn(`Failed to parse diff line ranges from baseline '${baselineRef}': ${cleanMsg.trim()}`);
   }
 
   return rangeMap;

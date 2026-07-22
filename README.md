@@ -16,6 +16,8 @@
 
 **GuardGate** is an extensible, AI-ready security suite designed to run seamlessly in your CI/CD pipelines. It goes beyond simple regex scanning by providing true semantic code analysis, headless browser E2E security tests, intelligent API fuzzing, and much more.
 
+![GuardGate Architecture](./diagram.png)
+
 ## ✨ Features
 
 - **🌐 E2E Security Tests (Browser)**: Headless browser workflows powered by Playwright to catch XSS, CSRF, and Auth Bypasses using programmable YAML workflows.

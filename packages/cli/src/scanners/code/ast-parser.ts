@@ -46,10 +46,31 @@ export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[]
       }
 
       // Check for exec(), child_process.exec(), etc.
-      if (
-        (ts.isIdentifier(expr) && expr.text === 'exec') ||
-        (ts.isPropertyAccessExpression(expr) && expr.name.text === 'exec')
-      ) {
+      // Check for exec(), child_process.exec(), etc.
+      let isExecCall = false;
+
+      if (ts.isIdentifier(expr) && expr.text === 'exec') {
+        isExecCall = true;
+      } else if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'exec') {
+        // Naive heuristic to avoid flagging RegExp.exec()
+        const obj = expr.expression;
+        let objName = '';
+        if (ts.isIdentifier(obj)) {
+          objName = obj.text.toLowerCase();
+        } else if (ts.isPropertyAccessExpression(obj)) {
+          objName = obj.name.text.toLowerCase();
+        }
+
+        if (
+          !ts.isRegularExpressionLiteral(obj) && 
+          !objName.includes('regex') && 
+          !objName.includes('pattern')
+        ) {
+          isExecCall = true;
+        }
+      }
+
+      if (isExecCall) {
         // If the argument is not a simple string literal, it's highly dangerous
         const arg = node.arguments[0];
         if (arg && !ts.isStringLiteral(arg) && !ts.isNoSubstitutionTemplateLiteral(arg)) {

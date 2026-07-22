@@ -9,3 +9,6 @@ apps/dashboard/src/lib/db.ts
 
 # Scanner regex definitions contain strings that match their own rules
 packages/cli/src/scanners/secrets/rules.ts
+
+# Examples contain intentional vulnerabilities for testing
+examples/

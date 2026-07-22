@@ -106,7 +106,7 @@ export const codeConfigSchema = z
     /** File extensions to scan */
     extensions: z.array(z.string()).default(['.py', '.js', '.ts']),
     /** Paths to exclude from scanning (glob) */
-    exclude: z.array(z.string()).default(['node_modules/**', 'dist/**', 'build/**']),
+    exclude: z.array(z.string()).default(['**/node_modules/**', '**/dist/**', '**/build/**']),
     /** Custom JS rule files */
     ruleFiles: z.array(z.string()).default([]),
   })

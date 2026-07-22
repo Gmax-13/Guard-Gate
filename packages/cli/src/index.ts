@@ -471,66 +471,122 @@ addScanOptions(
 // ─── help command ───────────────────────────────────────────────────────
 program
   .command('help')
-  .description('Display help information')
+  .description('Display comprehensive help information')
   .action(() => {
-    program.help();
+    const helpText = `
+GuardGate Security Scanner
+
+Usage: guardgate scan [options] [command]
+
+Description:
+  Run security scans against your repository and application.
+  If no subcommand is provided, runs all enabled modules sequentially.
+
+Global Options:
+  -c, --config <path>     Path to guardgate config file
+  -s, --severity <level>  Minimum severity threshold to fail
+                          (info|low|medium|high|critical)
+  --format <format>       Output format (json|console|both)
+  --verbose               Enable verbose/debug output
+  --quiet                 Suppress all output except errors
+  -h, --help              display help for command
+
+Modules (Subcommands):
+  guardgate scan secrets  Scan for leaked secrets and credentials (history & files)
+  guardgate scan sbom     Scan dependencies for known vulnerabilities (SBOM)
+  guardgate scan sast     Scan backend source code for insecure patterns (AST & Custom Rules)
+  guardgate scan api      Fuzz backend API endpoints for vulnerabilities (DAST)
+  guardgate scan e2e      Run security-focused E2E browser tests
+
+Utility Commands:
+  guardgate agent         Output detailed instructions and schemas for AI agents
+                          to generate customizable security workflows.
+  guardgate help          Display this comprehensive help information.
+
+Examples:
+  $ guardgate scan
+  $ guardgate scan sast --severity high --format json
+  $ guardgate scan secrets -c custom-config.yml
+`;
+    console.log(helpText.trim());
   });
 
 // ─── agent command ──────────────────────────────────────────────────────
 program
   .command('agent')
-  .description('Output detailed instructions for AI agents to generate E2E workflows')
+  .description('Output detailed instructions for AI agents to generate workflows')
   .action(() => {
     const prompt = `
 # GuardGate Agent Instructions
 
-You are an AI Agent assisting the user with setting up E2E security test flows for GuardGate.
+You are an AI Agent assisting the user with setting up security workflows for GuardGate.
+GuardGate supports 3 programmable modules: E2E (Browser), API (DAST), and SAST (Code Analysis).
 
 ## Objective
-Your task is to analyze the user's web application and generate E2E security testing flow files in YAML format.
+Analyze the user's application using \`list_dir\` and \`view_file\` and generate appropriate YAML workflow/rule files.
+Save all generated files into the \`<project-root>/.guardgate/\` directory structure.
+After creating any file, register its path in the user's \`guardgate.config.yml\` under the appropriate module.
 
-## File Locations
-- Workflows MUST be saved in the \`.guardgate/flows/\` directory.
-- After creating a workflow, you MUST register its path in the user's \`guardgate.config.yml\` under \`e2e.flowFiles\`.
+---
 
-## Naming Convention
-Workflow files must follow this strict naming convention:
-\`guardgate_[module_targeted]_[action_performed].yml\`
-(e.g., \`guardgate_auth_login_bypass.yml\`, \`guardgate_profile_xss_injection.yml\`)
-
-## Workflow Format (YAML)
-GuardGate flows are Playwright-based YAML files. Here is the exact schema:
-
+### 1. E2E Security Tests (Browser)
+- **File Naming:** \`.guardgate/flows/guardgate_e2e_[action].yml\`
+- **Registration:** Add to \`e2e.flowFiles\` in \`guardgate.config.yml\`.
+- **Schema:**
 \`\`\`yaml
-name: "Description of the flow"
+name: "E2E Auth Bypass"
 steps:
   - action: "goto" | "click" | "fill" | "assert" | "extract"
     target: "CSS Selector or URL"
     value: "Text to fill or assertion value"
-    plugin: "Name of the assertion plugin (for assert action)"
-    storeAs: "Variable name (for extract action)"
+    plugin: "xss-reflected" | "sql-injection" | "csrf" | "auth-bypass" | "idor"
+    storeAs: "Variable name"
 \`\`\`
 
-### Supported Actions
-- \`goto\`: Navigate to a URL (target: URL).
-- \`fill\`: Fill an input field (target: selector, value: text).
-- \`click\`: Click an element (target: selector).
-- \`assert\`: Run a security assertion (target: URL or empty, plugin: plugin name).
-- \`extract\`: Extract text or attribute (target: selector, storeAs: variable).
+---
 
-### Available Assertion Plugins
-- \`xss-reflected\`: Submits XSS payloads and checks if they are reflected in the DOM without sanitization.
-- \`sql-injection\`: Submits SQLi payloads (e.g. \`' OR '1'='1\`) and checks for DB errors or bypasses.
-- \`csrf\`: Submits a state-changing form without a CSRF token to see if it succeeds.
-- \`auth-bypass\`: Attempts to access protected routes without a valid session.
-- \`idor\`: Attempts to access or modify resources belonging to another user.
+### 2. API Fuzzer (DAST)
+- **File Naming:** \`.guardgate/flows/guardgate_api_[target].yml\`
+- **Registration:** Add to \`api.flowFiles\` in \`guardgate.config.yml\`.
+- **Schema:**
+\`\`\`yaml
+name: "API SQL Injection Test"
+endpoints:
+  - method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
+    path: "/api/login"
+    headers:
+      Content-Type: "application/json"
+    body:
+      username: "admin' OR '1'='1"
+      password: "foo"
+    assert:
+      status: 200
+      plugin: "sql-injection"
+\`\`\`
+
+---
+
+### 3. Programmable SAST (Static Analysis)
+- **File Naming:** \`.guardgate/rules/guardgate_sast_[rule].yml\`
+- **Registration:** Add to \`sast.ruleFiles\` in \`guardgate.config.yml\`.
+- **Schema:**
+\`\`\`yaml
+name: "Custom SAST Rules"
+rules:
+  - id: "custom-sqli"
+    severity: "high" | "critical" | "medium"
+    message: "Avoid dynamic raw queries"
+    nodeType: "CallExpression" # Optional: Limit to specific AST nodes (CallExpression, JsxAttribute, PropertyAccessExpression)
+    pattern: "query\\\\s*\\\\("    # Regex to match against the node's source code
+\`\`\`
+
+---
 
 ## Instructions for the Agent
-1. **Analyze**: Use \`list_dir\` and \`view_file\` to find the web application's routes, forms (login, signup, data mutation), and API endpoints.
-2. **Generate**: Create 2-3 E2E test flows targeting the most critical paths (e.g. authentication, profile update).
-3. **Save**: Save these files directly into \`<project-root>/.guardgate/flows/\` (create the directory if it doesn't exist) following the naming convention.
-4. **Register**: Modify \`guardgate.config.yml\` to append the newly created flow files to the \`e2e.flowFiles\` list.
-5. **Run**: Propose to the user to run \`guardgate scan e2e\` to verify the new flows.
+1. **Analyze**: Explore the project to understand the routes, APIs, and codebase quirks.
+2. **Generate**: Create the necessary YAML files for the requested module (or all three).
+3. **Register**: Update \`guardgate.config.yml\` to include your new YAML files.
+4. **Run**: Propose to the user to run \`guardgate scan [module]\` to verify.
 `;
     console.log(prompt.trim());
   });

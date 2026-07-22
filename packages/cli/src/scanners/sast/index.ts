@@ -5,6 +5,8 @@ import { Severity, type ModuleResult, type Finding } from '../../types/report.js
 import type { Scanner, ScanContext } from '../../types/scanner.js';
 import type { SastConfig } from '../../config/schema.js';
 import { parseAndScanFile } from './ast-parser.js';
+import { parseSastRules, type SastCustomRule } from './rules.js';
+import { resolve } from 'node:path';
 
 export class SastScanner implements Scanner {
   readonly name = 'sast';
@@ -40,11 +42,21 @@ export class SastScanner implements Scanner {
         absolute: true,
       });
 
-      logger.debug(`Found ${files.length} files to analyze`);
+      // Load custom rules
+      const customRules: SastCustomRule[] = [];
+      if (config.ruleFiles) {
+        for (const ruleFile of config.ruleFiles) {
+          const fullPath = resolve(rootDir, ruleFile);
+          const rules = parseSastRules(fullPath);
+          customRules.push(...rules);
+        }
+      }
+
+      logger.debug(`Found ${files.length} files to analyze with ${customRules.length} custom rules`);
 
       for (const file of files) {
         try {
-          const fileFindings = parseAndScanFile(file);
+          const fileFindings = parseAndScanFile(file, customRules);
           for (const f of fileFindings) {
             const relPath = relative(rootDir, f.file);
             const severity = f.severity as Severity;

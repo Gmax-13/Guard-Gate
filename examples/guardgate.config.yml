@@ -84,3 +84,5 @@ sast:
     - "node_modules/**"
     - "dist/**"
     - "build/**"
+  ruleFiles:
+    - "rules/guardgate_sast_custom.yml"

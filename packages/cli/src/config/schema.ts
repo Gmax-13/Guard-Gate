@@ -7,8 +7,8 @@
 
 import { z } from 'zod';
 
-/** Severity values accepted in config */
-const severityEnum = z.enum(['info', 'low', 'medium', 'high', 'critical']);
+/** Shared severity enum schema */
+export const severityEnum = z.enum(['info', 'low', 'medium', 'high', 'critical']);
 
 /** Secrets scanner configuration */
 export const secretsConfigSchema = z
@@ -106,6 +106,8 @@ export const sastConfigSchema = z
     extensions: z.array(z.string()).default(['.py', '.js', '.ts']),
     /** Paths to exclude from SAST scanning (glob) */
     exclude: z.array(z.string()).default(['node_modules/**', 'dist/**', 'build/**']),
+    /** Custom SAST rule files */
+    ruleFiles: z.array(z.string()).default([]),
   })
   .default({});
 

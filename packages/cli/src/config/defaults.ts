@@ -60,5 +60,6 @@ export const DEFAULT_CONFIG: GuardGateConfig = {
     severityThreshold: 'medium',
     extensions: ['.py', '.js', '.ts'],
     exclude: ['node_modules/**', 'dist/**', 'build/**'],
+    ruleFiles: [],
   },
 };

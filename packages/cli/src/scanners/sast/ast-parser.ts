@@ -1,6 +1,8 @@
 import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 
+import type { SastCustomRule } from './rules.js';
+
 export interface SastFinding {
   file: string;
   line: number;
@@ -10,7 +12,7 @@ export interface SastFinding {
   message: string;
 }
 
-export function parseAndScanFile(filePath: string): SastFinding[] {
+export function parseAndScanFile(filePath: string, customRules: SastCustomRule[] = []): SastFinding[] {
   const findings: SastFinding[] = [];
   const sourceText = readFileSync(filePath, 'utf-8');
   const sourceFile = ts.createSourceFile(
@@ -113,10 +115,37 @@ export function parseAndScanFile(filePath: string): SastFinding[] {
         file: filePath,
         line,
         snippet,
-        type: 'Cross-Site Scripting (XSS)',
-        severity: 'high',
-        message: 'dangerouslySetInnerHTML detected. Ensure data is sanitized before rendering.'
+        type: 'XSS Injection',
+        severity: 'critical',
+        message: 'Direct use of dangerouslySetInnerHTML detected. This can lead to XSS if input is unsanitized.'
       });
+    }
+
+    // Execute custom rules
+    for (const rule of customRules as SastCustomRule[]) {
+      // If nodeType is specified, ensure it matches
+      if (rule.nodeType) {
+        let nodeMatches = false;
+        if (rule.nodeType === 'CallExpression' && ts.isCallExpression(node)) nodeMatches = true;
+        else if (rule.nodeType === 'PropertyAccessExpression' && ts.isPropertyAccessExpression(node)) nodeMatches = true;
+        else if (rule.nodeType === 'JsxAttribute' && ts.isJsxAttribute(node)) nodeMatches = true;
+        
+        if (!nodeMatches) continue;
+      }
+
+      // Test regex pattern against the node's source code
+      const regex = new RegExp(rule.pattern as string);
+      if (regex.test(node.getText())) {
+        const { line, snippet } = getLineInfo(node);
+        findings.push({
+          file: filePath,
+          line,
+          snippet,
+          type: rule.id as string,
+          severity: rule.severity as 'low' | 'medium' | 'high' | 'critical',
+          message: rule.message as string
+        });
+      }
     }
 
     ts.forEachChild(node, walk);

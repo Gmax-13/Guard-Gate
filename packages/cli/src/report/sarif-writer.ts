@@ -48,6 +48,8 @@ interface SarifResult {
   message: { text: string };
   locations?: Array<{ physicalLocation: SarifPhysicalLocation }>;
   partialFingerprints?: Record<string, string>;
+  fingerprints?: Record<string, string>;
+  baselineState?: 'new' | 'unchanged' | 'updated' | 'absent';
   properties?: Record<string, unknown>;
 }
 
@@ -203,12 +205,26 @@ function moduleResultToSarifRun(
     }
 
     // Add partial fingerprints for deduplication
-    const fingerprints: Record<string, string> = {};
+    const partialFingerprints: Record<string, string> = {};
     if (finding.commitHash) {
-      fingerprints['commitHash'] = finding.commitHash;
+      partialFingerprints['commitHash'] = finding.commitHash;
     }
-    fingerprints['findingId'] = finding.id;
-    result.partialFingerprints = fingerprints;
+    partialFingerprints['findingId'] = finding.id;
+    result.partialFingerprints = partialFingerprints;
+
+    // Add baseline stable fingerprint
+    if (finding.fingerprint) {
+      result.fingerprints = {
+        guardgate: finding.fingerprint,
+      };
+    }
+
+    // Set baseline state
+    if (finding.baselineStatus === 'new') {
+      result.baselineState = 'new';
+    } else if (finding.baselineStatus === 'baseline') {
+      result.baselineState = 'unchanged';
+    }
 
     // Add metadata as properties
     if (finding.metadata && Object.keys(finding.metadata).length > 0) {

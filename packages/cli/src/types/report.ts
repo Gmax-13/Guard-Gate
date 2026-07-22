@@ -61,6 +61,10 @@ export interface Finding {
   evidence?: Evidence[];
   /** Module-specific metadata (e.g., CVE details, cookie attributes, etc.) */
   metadata?: Record<string, unknown>;
+  /** Stable fingerprint for deduplication across runs (SHA-256 hash) */
+  fingerprint?: string;
+  /** Baseline status: 'new' = introduced since baseline, 'baseline' = pre-existing */
+  baselineStatus?: 'new' | 'baseline';
 }
 
 /** Result from a single scanner module. */
@@ -114,4 +118,13 @@ export interface ScanReport {
   modules: ModuleResult[];
   /** Total scan duration in milliseconds */
   durationMs: number;
+  /** Baseline comparison metadata (present only when --baseline is used) */
+  baseline?: {
+    /** The git ref used as the baseline */
+    ref: string;
+    /** Number of findings introduced since the baseline */
+    newFindings: number;
+    /** Number of pre-existing findings suppressed from pass/fail */
+    baselineFindings: number;
+  };
 }

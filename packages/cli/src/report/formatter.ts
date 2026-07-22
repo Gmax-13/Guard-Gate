@@ -40,6 +40,10 @@ export function formatReport(report: ScanReport): void {
   console.log(chalk.gray(`Commit:     ${report.repository.commitSha.substring(0, 8)}`));
   console.log(chalk.gray(`Timestamp:  ${report.timestamp}`));
   console.log(chalk.gray(`Duration:   ${(report.durationMs / 1000).toFixed(2)}s`));
+  if (report.baseline) {
+    console.log(chalk.cyan(`Baseline:   ${report.baseline.ref}`));
+    console.log(chalk.cyan(`            ${report.baseline.newFindings} new, ${report.baseline.baselineFindings} pre-existing`));
+  }
   console.log();
 
   // Module results
@@ -95,9 +99,6 @@ function formatModuleResult(result: ModuleResult): void {
   console.log();
 }
 
-/**
- * Format a single finding.
- */
 function formatFinding(finding: Finding): void {
   const icon = SEVERITY_ICONS[finding.severity];
   const severityLabel = SEVERITY_COLORS[finding.severity](
@@ -107,13 +108,24 @@ function formatFinding(finding: Finding): void {
     ? chalk.gray(`${finding.filePath}${finding.lineNumber ? `:${finding.lineNumber}` : ''}`)
     : '';
 
-  console.log(`  ${icon} ${severityLabel} ${finding.ruleName}`);
-  console.log(chalk.gray(`     ${finding.message}`));
+  let title = `  ${icon} ${severityLabel} ${finding.ruleName}`;
+  if (finding.baselineStatus === 'new') {
+    title += chalk.yellow(' [NEW]');
+  } else if (finding.baselineStatus === 'baseline') {
+    title += chalk.gray(' [BASELINE]');
+  }
+
+  // Dim the entire output if it's a suppressed baseline finding
+  const isSuppressed = finding.baselineStatus === 'baseline';
+  const dimIfSuppressed = (text: string) => isSuppressed ? chalk.dim(text) : text;
+
+  console.log(dimIfSuppressed(title));
+  console.log(dimIfSuppressed(chalk.gray(`     ${finding.message}`)));
   if (location) {
-    console.log(chalk.gray(`     at ${location}`));
+    console.log(dimIfSuppressed(chalk.gray(`     at ${location}`)));
   }
   if (finding.commitHash) {
-    console.log(chalk.gray(`     commit: ${finding.commitHash.substring(0, 8)}`));
+    console.log(dimIfSuppressed(chalk.gray(`     commit: ${finding.commitHash.substring(0, 8)}`)));
   }
 }
 

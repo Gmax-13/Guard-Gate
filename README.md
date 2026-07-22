@@ -24,6 +24,7 @@
 - **📦 SBOM & Dependency Scanner**: Automatically audits your `package.json` against known CVEs.
 - **🔑 Secrets Scanner**: Fast and reliable scanning to ensure credentials and tokens never make it into your repository.
 - **📄 SARIF Output** *(v1.1.0)*: Generate [SARIF v2.1.0](https://sarifweb.azurewebsites.net/) reports that plug directly into GitHub's Security tab and GitLab's code-scanning UI — no custom dashboard needed.
+- **🎯 Diff-Aware / Baseline Scanning** *(v1.2.0)*: Stop drowning in legacy security debt. Use `--baseline <commit>` to suppress pre-existing findings and only fail the build on *new* vulnerabilities introduced in your PR.
 - **🤖 AI Agent Ready**: Out-of-the-box support for AI agents. Run `guardgate agent` to generate perfect workflow and rule schemas instantly.
 - **📊 Vercel Hosted Dashboard**: View aggregated security reports, metrics, and evidence through a beautiful, Vercel-hosted React interface.
 
@@ -78,6 +79,12 @@ guardgate scan --format console    # Console output only
 guardgate scan --format both       # Console + JSON (default)
 guardgate scan --format sarif      # SARIF v2.1.0 report only
 guardgate scan --format all        # Console + JSON + SARIF
+```
+
+**Baseline Scanning (Diff-Aware):**
+```bash
+guardgate scan --baseline main     # Compare against main branch
+guardgate scan --baseline HEAD~1   # Compare against previous commit
 ```
 
 ### 4. Running the Dashboard

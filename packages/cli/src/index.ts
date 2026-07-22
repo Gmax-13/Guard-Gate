@@ -29,11 +29,12 @@ import {
 import { formatReport } from './report/formatter.js';
 import { writeJsonReport } from './report/json-writer.js';
 import { writeSarifReport } from './report/sarif-writer.js';
+import { applyBaseline } from './utils/baseline.js';
 import type { Scanner, ScanContext } from './types/scanner.js';
 import type { ScanReport, ModuleResult } from './types/report.js';
 import { Severity, SEVERITY_WEIGHT } from './types/report.js';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 const program = new Command();
 
@@ -62,6 +63,7 @@ function addScanOptions(cmd: Command): Command {
       'Minimum severity threshold to fail (info|low|medium|high|critical)',
     )
     .option('--format <format>', 'Output format (json|console|both|sarif|all)')
+    .option('--baseline <ref>', 'Compare against a baseline git commit to only report new findings')
     .option('--verbose', 'Enable verbose/debug output')
     .option('--quiet', 'Suppress all output except errors');
 }
@@ -89,6 +91,9 @@ async function resolveScanContext(
   }
   if (options.format) {
     config.outputFormat = options.format as 'json' | 'console' | 'both' | 'sarif' | 'all';
+  }
+  if (options.baseline) {
+    config.baseline = options.baseline as string;
   }
 
   // Resolve output directory to absolute path under cwd and ensure it exists
@@ -194,6 +199,10 @@ async function runScanners(
     modules: moduleResults,
     durationMs: totalDurationMs,
   };
+
+  if (config.baseline) {
+    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity);
+  }
 
   // Output the report
   const fmt = config.outputFormat;
@@ -389,6 +398,10 @@ async function runAllPhased(
     modules: allModuleResults,
     durationMs: totalDurationMs,
   };
+
+  if (config.baseline) {
+    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity);
+  }
 
   // Output
   const fmt = config.outputFormat;

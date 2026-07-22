@@ -58,13 +58,13 @@
 
 ## 🔄 Pending Features (v1.1.0+)
 
-### v1.1.0 — SARIF Output Format 🚧 *In Progress*
-- [ ] Generate SARIF v2.1.0 formatted reports
-- [ ] `--format sarif` and `--format all` CLI options
-- [ ] GitHub Actions SARIF upload (findings appear in Security tab)
-- [ ] GitLab code-scanning UI compatibility
+### v1.1.0 — SARIF Output Format (Completed)
+- [x] Generate SARIF v2.1.0 formatted reports
+- [x] `--format sarif` and `--format all` CLI options
+- [x] GitHub Actions SARIF upload (findings appear in Security tab)
+- [x] GitLab code-scanning UI compatibility
 
-### v1.2.0 — Diff-Aware / Baseline Scanning
+### v1.2.0 — Diff-Aware / Baseline Scanning 🚧 *In Progress*
 - [ ] `guardgate scan --baseline <commit>` to only fail on new findings since a reference commit
 - [ ] Suppression of pre-existing findings in legacy codebases
 - [ ] Baseline fingerprinting for finding deduplication

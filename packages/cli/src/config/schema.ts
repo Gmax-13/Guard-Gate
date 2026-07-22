@@ -121,6 +121,8 @@ export const guardgateConfigSchema = z
     outputDir: z.string().default('.guardgate'),
     /** Output format: json, console, both, sarif, or all (console + json + sarif) */
     outputFormat: z.enum(['json', 'console', 'both', 'sarif', 'all']).default('both'),
+    /** Baseline git ref for diff-aware scanning (e.g., 'main', 'HEAD~3', commit SHA) */
+    baseline: z.string().optional(),
     /** Module-specific configuration */
     secrets: secretsConfigSchema,
     sbom: sbomConfigSchema,

@@ -1,19 +1,19 @@
 import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 
-import type { SastCustomRule } from './rules.js';
+import type { CodeCustomRule } from './rules.js';
 
-export interface SastFinding {
+export interface CodeFinding {
   file: string;
   line: number;
   snippet: string;
   type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
   message: string;
 }
 
-export function parseAndScanFile(filePath: string, customRules: SastCustomRule[] = []): SastFinding[] {
-  const findings: SastFinding[] = [];
+export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[] = []): CodeFinding[] {
+  const findings: CodeFinding[] = [];
   const sourceText = readFileSync(filePath, 'utf-8');
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -121,30 +121,22 @@ export function parseAndScanFile(filePath: string, customRules: SastCustomRule[]
       });
     }
 
-    // Execute custom rules
-    for (const rule of customRules as SastCustomRule[]) {
-      // If nodeType is specified, ensure it matches
-      if (rule.nodeType) {
-        let nodeMatches = false;
-        if (rule.nodeType === 'CallExpression' && ts.isCallExpression(node)) nodeMatches = true;
-        else if (rule.nodeType === 'PropertyAccessExpression' && ts.isPropertyAccessExpression(node)) nodeMatches = true;
-        else if (rule.nodeType === 'JsxAttribute' && ts.isJsxAttribute(node)) nodeMatches = true;
-        
-        if (!nodeMatches) continue;
-      }
-
-      // Test regex pattern against the node's source code
-      const regex = new RegExp(rule.pattern as string);
-      if (regex.test(node.getText())) {
-        const { line, snippet } = getLineInfo(node);
-        findings.push({
-          file: filePath,
-          line,
-          snippet,
-          type: rule.id as string,
-          severity: rule.severity as 'low' | 'medium' | 'high' | 'critical',
-          message: rule.message as string
-        });
+    // Execute custom JS rules
+    for (const rule of customRules) {
+      try {
+        if (rule.check(node, ts, {})) {
+          const { line, snippet } = getLineInfo(node);
+          findings.push({
+            file: filePath,
+            line,
+            snippet,
+            type: rule.id,
+            severity: rule.severity,
+            message: rule.message
+          });
+        }
+      } catch (err) {
+        // ignore errors in rule check to not crash the whole scan
       }
     }
 

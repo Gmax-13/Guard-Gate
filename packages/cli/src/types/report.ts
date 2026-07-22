@@ -25,7 +25,7 @@ export const SEVERITY_WEIGHT: Record<Severity, number> = {
 };
 
 /** The scanner module that produced the finding. */
-export type ModuleName = 'secrets' | 'sbom' | 'e2e' | 'sast' | 'api';
+export type ModuleName = 'secrets' | 'sbom' | 'e2e' | 'api' | 'code';
 
 /** Evidence attached to a finding (screenshots, request/response snippets, etc.) */
 export interface Evidence {

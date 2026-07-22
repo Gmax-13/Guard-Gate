@@ -96,17 +96,18 @@ export const apiConfigSchema = z
   })
   .default({});
 
-/** SAST configuration */
-export const sastConfigSchema = z
+/** Code scanner configuration */
+export const codeConfigSchema = z
   .object({
+    /** Enable code scanner */
     enabled: z.boolean().default(true),
-    /** Severity threshold for failing the scan */
+    /** Minimum severity to report */
     severityThreshold: severityEnum.default('medium'),
     /** File extensions to scan */
     extensions: z.array(z.string()).default(['.py', '.js', '.ts']),
-    /** Paths to exclude from SAST scanning (glob) */
+    /** Paths to exclude from scanning (glob) */
     exclude: z.array(z.string()).default(['node_modules/**', 'dist/**', 'build/**']),
-    /** Custom SAST rule files */
+    /** Custom JS rule files */
     ruleFiles: z.array(z.string()).default([]),
   })
   .default({});
@@ -125,7 +126,7 @@ export const guardgateConfigSchema = z
     sbom: sbomConfigSchema,
     e2e: e2eConfigSchema,
     api: apiConfigSchema,
-    sast: sastConfigSchema,
+    code: codeConfigSchema,
   })
   .default({});
 
@@ -135,4 +136,4 @@ export type SecretsConfig = z.infer<typeof secretsConfigSchema>;
 export type SbomConfig = z.infer<typeof sbomConfigSchema>;
 export type E2eConfig = z.infer<typeof e2eConfigSchema>;
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
-export type SastConfig = z.infer<typeof sastConfigSchema>;
+export type CodeConfig = z.infer<typeof codeConfigSchema>;

@@ -55,7 +55,7 @@ export const DEFAULT_CONFIG: GuardGateConfig = {
     variables: {},
     timeout: 10000,
   },
-  sast: {
+  code: {
     enabled: true,
     severityThreshold: 'medium',
     extensions: ['.py', '.js', '.ts'],

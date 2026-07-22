@@ -5,3 +5,4 @@ endpoints:
     assert:
       status: 200
       plugin: "auth-bypass"
+      matchBody: "dashboard|welcome|admin"

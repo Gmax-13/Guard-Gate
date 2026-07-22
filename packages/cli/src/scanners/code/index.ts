@@ -3,18 +3,18 @@ import fg from 'fast-glob';
 import { logger } from '../../utils/logger.js';
 import { Severity, type ModuleResult, type Finding } from '../../types/report.js';
 import type { Scanner, ScanContext } from '../../types/scanner.js';
-import type { SastConfig } from '../../config/schema.js';
+import type { CodeConfig } from '../../config/schema.js';
 import { parseAndScanFile } from './ast-parser.js';
-import { parseSastRules, type SastCustomRule } from './rules.js';
+import { loadCodeRules, type CodeCustomRule } from './rules.js';
 import { resolve } from 'node:path';
 
-export class SastScanner implements Scanner {
-  readonly name = 'sast';
-  readonly displayName = 'SAST (Static Analysis)';
+export class CodeScanner implements Scanner {
+  readonly name = 'code';
+  readonly displayName = 'Code (Static Analysis)';
 
   async scan(context: ScanContext): Promise<ModuleResult> {
     const startTime = Date.now();
-    const config = context.config.sast as SastConfig;
+    const config = context.config.code as CodeConfig;
     const rootDir = context.rootDir;
 
     const findings: Finding[] = [];
@@ -27,7 +27,7 @@ export class SastScanner implements Scanner {
     };
 
     if (config.enabled === false) {
-      logger.info('SAST scanner is disabled');
+      logger.info('Code scanner is disabled');
       return this.buildResult(true, findings, findingsBySeverity, startTime);
     }
 
@@ -42,12 +42,12 @@ export class SastScanner implements Scanner {
         absolute: true,
       });
 
-      // Load custom rules
-      const customRules: SastCustomRule[] = [];
+      // Load custom rules (async)
+      const customRules: CodeCustomRule[] = [];
       if (config.ruleFiles) {
         for (const ruleFile of config.ruleFiles) {
           const fullPath = resolve(rootDir, ruleFile);
-          const rules = parseSastRules(fullPath);
+          const rules = await loadCodeRules(fullPath);
           customRules.push(...rules);
         }
       }
@@ -63,8 +63,8 @@ export class SastScanner implements Scanner {
 
             findingsBySeverity[severity]++;
             findings.push({
-              id: `sast-${f.type.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-              module: 'sast',
+              id: `code-${f.type.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+              module: 'code',
               ruleId: f.type.toLowerCase().replace(/\s+/g, '-'),
               ruleName: f.type,
               severity,

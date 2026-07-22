@@ -8,10 +8,14 @@ export const apiEndpointSchema = z.object({
   path: z.string(),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.any().optional(),
-  assert: z.object({
-    status: z.number().optional(),
-    plugin: z.string().optional(),
-  }),
+  assert: z
+    .object({
+      status: z.number().optional(),
+      plugin: z.string().optional(),
+      matchBody: z.string().optional(),
+      notMatchBody: z.string().optional(),
+    })
+    .default({ status: 200 }),
 });
 
 export const apiFlowSchema = z.object({

@@ -217,9 +217,9 @@ async function loadScannerModule(name: string): Promise<Scanner | null> {
         const { SbomScanner } = await import('./scanners/sbom/index.js');
         return new SbomScanner();
       }
-      case 'sast': {
-        const { SastScanner } = await import('./scanners/sast/index.js');
-        return new SastScanner();
+      case 'code': {
+        const { CodeScanner } = await import('./scanners/code/index.js');
+        return new CodeScanner();
       }
       case 'api': {
         const { ApiScanner } = await import('./scanners/api/index.js');
@@ -251,7 +251,7 @@ async function runAllPhased(
   const PHASES = [
     { name: 'secrets', label: 'Secrets Scanner' },
     { name: 'sbom',    label: 'SBOM / Dependency Scanner' },
-    { name: 'sast',    label: 'SAST (Static Analysis)' },
+    { name: 'code',    label: 'Code Scanner (Semantic Analysis)' },
     { name: 'api',     label: 'API Security Fuzzer (DAST)' },
     { name: 'e2e',     label: 'E2E Security Tests' },
   ];
@@ -426,14 +426,14 @@ addScanOptions(
   process.exit(report.summary.passed ? 0 : 1);
 });
 
-// ─── scan sast ────────────────────────────────────────────────────────
+// ─── scan code ────────────────────────────────────────────────────────
 addScanOptions(
   scanCmd
-    .command('sast')
-    .description('Scan backend source code for insecure patterns (SAST)'),
+    .command('code')
+    .description('Scan backend source code for insecure patterns (AST & Custom Rules)'),
 ).action(async (options) => {
   const { context, config } = await resolveScanContext(options);
-  const scanner = await loadScannerModule('sast');
+  const scanner = await loadScannerModule('code');
   if (!scanner) process.exit(1);
 
   const report = await runScanners([scanner], context, config);
@@ -494,7 +494,7 @@ Global Options:
 Modules (Subcommands):
   guardgate scan secrets  Scan for leaked secrets and credentials (history & files)
   guardgate scan sbom     Scan dependencies for known vulnerabilities (SBOM)
-  guardgate scan sast     Scan backend source code for insecure patterns (AST & Custom Rules)
+  guardgate scan code     Scan backend source code for insecure patterns (Semantic Analysis)
   guardgate scan api      Fuzz backend API endpoints for vulnerabilities (DAST)
   guardgate scan e2e      Run security-focused E2E browser tests
 
@@ -505,7 +505,7 @@ Utility Commands:
 
 Examples:
   $ guardgate scan
-  $ guardgate scan sast --severity high --format json
+  $ guardgate scan code --severity high --format json
   $ guardgate scan secrets -c custom-config.yml
 `;
     console.log(helpText.trim());
@@ -520,7 +520,7 @@ program
 # GuardGate Agent Instructions
 
 You are an AI Agent assisting the user with setting up security workflows for GuardGate.
-GuardGate supports 3 programmable modules: E2E (Browser), API (DAST), and SAST (Code Analysis).
+GuardGate supports 3 programmable modules: E2E (Browser), API (DAST), and Code Scanner (Semantic Analysis).
 
 ## Objective
 Analyze the user's application using \`list_dir\` and \`view_file\` and generate appropriate YAML workflow/rule files.
@@ -566,18 +566,24 @@ endpoints:
 
 ---
 
-### 3. Programmable SAST (Static Analysis)
-- **File Naming:** \`.guardgate/rules/guardgate_sast_[rule].yml\`
-- **Registration:** Add to \`sast.ruleFiles\` in \`guardgate.config.yml\`.
-- **Schema:**
-\`\`\`yaml
-name: "Custom SAST Rules"
-rules:
-  - id: "custom-sqli"
-    severity: "high" | "critical" | "medium"
-    message: "Avoid dynamic raw queries"
-    nodeType: "CallExpression" # Optional: Limit to specific AST nodes (CallExpression, JsxAttribute, PropertyAccessExpression)
-    pattern: "query\\\\s*\\\\("    # Regex to match against the node's source code
+### 3. Programmable Code Scanner (Semantic Analysis)
+- **File Naming:** \`.guardgate/rules/guardgate_code_[rule].js\`
+- **Registration:** Add to \`code.ruleFiles\` in \`guardgate.config.yml\`.
+- **Schema (JavaScript Plugin):**
+\`\`\`javascript
+module.exports = {
+  id: "custom-sqli",
+  severity: "high", // "high" | "critical" | "medium" | "low"
+  message: "Avoid dynamic raw queries",
+  check: function(node, ts, context) {
+    // You can write actual semantic AST logic here
+    if (ts.isCallExpression(node)) {
+      // Analyze node...
+      return true; // Return true if finding is detected
+    }
+    return false;
+  }
+};
 \`\`\`
 
 ---

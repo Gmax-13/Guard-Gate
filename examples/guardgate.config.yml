@@ -76,7 +76,7 @@ api:
   timeout: 10000
 
 # ─── SAST Static Analysis Configuration ────────────────────────────────
-sast:
+code:
   enabled: true
   severityThreshold: medium
   extensions: [".js", ".ts"]
@@ -85,4 +85,4 @@ sast:
     - "dist/**"
     - "build/**"
   ruleFiles:
-    - "rules/guardgate_sast_custom.yml"
+    - "rules/guardgate_code_custom.js"

@@ -1,6 +1,0 @@
-name: "Custom Application Rules"
-rules:
-  - id: "custom-no-map-render"
-    severity: "low"
-    message: "Custom Rule: Do not map over users array directly in HTML (example rule)"
-    pattern: "users\\.map"

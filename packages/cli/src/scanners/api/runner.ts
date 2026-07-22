@@ -27,14 +27,48 @@ export async function runApiEndpoint(
     const body = await res.text();
 
     // Check assertions
-    if (endpoint.assert.status !== undefined && status === endpoint.assert.status) {
+    let vulnerable = false;
+    let reason = '';
+
+    const expectedStatus = endpoint.assert.status;
+    const { matchBody, notMatchBody } = endpoint.assert;
+
+    // Determine vulnerability based on conditions provided
+    if (matchBody) {
+      if (new RegExp(matchBody).test(body)) {
+        vulnerable = true;
+        reason = `Response body matched vulnerable pattern /${matchBody}/`;
+      }
+    } else if (notMatchBody) {
+      if (!new RegExp(notMatchBody).test(body)) {
+        vulnerable = true;
+        reason = `Response body failed to match safe pattern /${notMatchBody}/`;
+      }
+    } else if (expectedStatus !== undefined) {
+      // Fallback: If only status is provided (weak check)
+      if (status === expectedStatus) {
+        vulnerable = true;
+        reason = `Endpoint returned vulnerable status code ${status} (Weak indicator)`;
+      }
+    }
+
+    // Narrow down with status if it was provided alongside body matches
+    if (vulnerable && expectedStatus !== undefined && (matchBody || notMatchBody)) {
+      if (status !== expectedStatus) {
+        vulnerable = false; // Overridden because status didn't match
+      } else {
+        reason += ` and status code ${status}`;
+      }
+    }
+
+    if (vulnerable) {
       findings.push({
         id: `api-${endpoint.assert.plugin || 'fuzz'}-${Date.now()}`,
         module: 'api',
-        ruleId: endpoint.assert.plugin || 'status-match',
-        ruleName: `API Status Match (${status})`,
+        ruleId: endpoint.assert.plugin || 'body-match',
+        ruleName: `API Vulnerability`,
         severity: Severity.HIGH,
-        message: `Endpoint returned expected vulnerable status code ${status}`,
+        message: reason,
         evidence: [
           {
             type: 'request',

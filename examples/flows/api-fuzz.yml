@@ -1,12 +1,7 @@
-name: "API SQL Injection Test"
+name: "API Auth Bypass Test"
 endpoints:
-  - method: "POST"
-    path: "/api/login"
-    headers:
-      Content-Type: "application/json"
-    body:
-      username: "admin' OR '1'='1"
-      password: "foo"
+  - method: "GET"
+    path: "/admin"
     assert:
       status: 200
-      plugin: "sql-injection"
+      plugin: "auth-bypass"

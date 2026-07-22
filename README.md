@@ -83,6 +83,71 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## 🔄 Continuous Integration (GitHub Actions)
+
+GuardGate is designed to seamlessly integrate into your CI/CD pipelines. We provide an out-of-the-box GitHub Actions workflow that runs your full security suite and securely uploads the resulting report to your Vercel-hosted dashboard.
+
+### Setup Instructions
+
+1. **Configure your GitHub Secrets & Variables**
+   Navigate to your repository's **Settings > Secrets and variables > Actions**:
+   - Add a new **Secret** named `GUARDGATE_API_KEY`. (Generate this from your dashboard interface).
+   - Add a new **Variable** named `GUARDGATE_DASHBOARD_URL`. (e.g., `https://guard-gate-dashboard-your-project.vercel.app`).
+
+2. **Add the Workflow**
+   Create a `.github/workflows/guardgate.yml` file in your repository:
+
+```yaml
+name: GuardGate Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run GuardGate Scan
+        run: pnpm exec guardgate scan
+        continue-on-error: true
+
+      - name: Upload Report to Dashboard
+        if: always()
+        env:
+          GUARDGATE_API_KEY: ${{ secrets.GUARDGATE_API_KEY }}
+          GUARDGATE_DASHBOARD_URL: ${{ vars.GUARDGATE_DASHBOARD_URL }}
+        run: |
+          REPORT_FILE=$(ls -t .guardgate/guardgate-report-*.json 2>/dev/null | head -n 1)
+          if [ -n "$REPORT_FILE" ] && [ -n "$GUARDGATE_API_KEY" ]; then
+            curl -X POST "$GUARDGATE_DASHBOARD_URL/api/reports" \
+              -H "Authorization: Bearer $GUARDGATE_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d @"$REPORT_FILE"
+          fi
+```
+
+---
+
 ## 🤖 AI Agent Integration
 
 GuardGate is built to be piloted by AI. We expose a powerful utility command that generates detailed YAML/JS instructions, empowering your AI coding assistant to automatically generate test cases and workflows tailored perfectly to your unique codebase.

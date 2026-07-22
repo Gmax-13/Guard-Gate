@@ -81,6 +81,34 @@ export const e2eConfigSchema = z
   })
   .default({});
 
+/** API Fuzzer configuration */
+export const apiConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    /** Target URL for API testing */
+    targetUrl: z.string().url().optional(),
+    /** Paths to API flow definition files (YAML) */
+    flowFiles: z.array(z.string()).default([]),
+    /** Variables for API flow interpolation */
+    variables: z.record(z.string(), z.string()).default({}),
+    /** Timeout for each request in milliseconds */
+    timeout: z.number().int().min(1000).default(10000),
+  })
+  .default({});
+
+/** SAST configuration */
+export const sastConfigSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    /** Severity threshold for failing the scan */
+    severityThreshold: severityEnum.default('medium'),
+    /** File extensions to scan */
+    extensions: z.array(z.string()).default(['.py', '.js', '.ts']),
+    /** Paths to exclude from SAST scanning (glob) */
+    exclude: z.array(z.string()).default(['node_modules/**', 'dist/**', 'build/**']),
+  })
+  .default({});
+
 /** Top-level GuardGate configuration */
 export const guardgateConfigSchema = z
   .object({
@@ -94,6 +122,8 @@ export const guardgateConfigSchema = z
     secrets: secretsConfigSchema,
     sbom: sbomConfigSchema,
     e2e: e2eConfigSchema,
+    api: apiConfigSchema,
+    sast: sastConfigSchema,
   })
   .default({});
 
@@ -102,3 +132,5 @@ export type GuardGateConfig = z.infer<typeof guardgateConfigSchema>;
 export type SecretsConfig = z.infer<typeof secretsConfigSchema>;
 export type SbomConfig = z.infer<typeof sbomConfigSchema>;
 export type E2eConfig = z.infer<typeof e2eConfigSchema>;
+export type ApiConfig = z.infer<typeof apiConfigSchema>;
+export type SastConfig = z.infer<typeof sastConfigSchema>;

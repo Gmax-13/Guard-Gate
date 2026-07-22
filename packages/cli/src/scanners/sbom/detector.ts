@@ -47,9 +47,5 @@ export function detectEcosystems(
     }
   }
 
-  if (detected.length === 0) {
-    logger.warn('No supported package ecosystems detected');
-  }
-
   return detected;
 }

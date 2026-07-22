@@ -10,6 +10,8 @@ import type { ModuleResult } from '../../types/report.js';
 import { Severity, SEVERITY_WEIGHT } from '../../types/report.js';
 import type { GuardGateConfig } from '../../config/schema.js';
 import type { Dependency } from './types.js';
+import fg from 'fast-glob';
+import { dirname } from 'node:path';
 import { detectEcosystems } from './detector.js';
 import { batchQueryOsv } from './osv-client.js';
 import { matchVulnerabilities } from './vulnerability-matcher.js';
@@ -28,39 +30,57 @@ export class SbomScanner implements Scanner {
     logger.info('Scanning dependencies for known vulnerabilities...');
 
     try {
-      // Step 1: Detect ecosystems
-      const parsers = detectEcosystems(context.rootDir, sbomConfig.ecosystems);
+      // Step 1: Detect ecosystems by finding all manifest files recursively
+      const manifestFiles = await fg([
+        '**/package.json', '**/package-lock.json', '**/yarn.lock',
+        '**/requirements.txt', '**/Pipfile.lock', '**/pyproject.toml',
+        '**/go.mod', '**/pom.xml', '**/Cargo.toml', '**/Cargo.lock'
+      ], {
+        cwd: context.rootDir,
+        ignore: ['**/node_modules/**', '**/.git/**', '**/.guardgate/**', '**/dist/**', '**/build/**'],
+        absolute: true,
+      });
 
-      if (parsers.length === 0) {
+      // Get unique directories containing manifests, plus the root directory as a fallback
+      const scanDirs = [...new Set([context.rootDir, ...manifestFiles.map(f => dirname(f))])];
+      const allDependencies: Dependency[] = [];
+      let detectedAny = false;
+
+      for (const dir of scanDirs) {
+        const parsers = detectEcosystems(dir, sbomConfig.ecosystems);
+        
+        if (parsers.length > 0) {
+          detectedAny = true;
+          for (const parser of parsers) {
+            logger.info(`Parsing ${parser.displayName} dependencies in ${dir}...`);
+            const result = await parser.parse(dir);
+
+            // Filter based on config
+            let deps = result.dependencies;
+            if (!sbomConfig.includeTransitive) {
+              deps = deps.filter((d) => d.isDirect);
+            }
+
+            // Apply ignore list
+            if (sbomConfig.ignoredPackages.length > 0) {
+              deps = deps.filter((d) => {
+                const nameVersion = `${d.name}@${d.version}`;
+                return !sbomConfig.ignoredPackages.includes(d.name) &&
+                  !sbomConfig.ignoredPackages.includes(nameVersion);
+              });
+            }
+
+            allDependencies.push(...deps);
+          }
+        }
+      }
+
+      if (!detectedAny) {
         logger.warn('No supported ecosystems detected, skipping SBOM scan');
         return this.emptyResult(Date.now() - startTime);
       }
-
-      // Step 2: Parse dependencies from all detected ecosystems
-      const allDependencies: Dependency[] = [];
-
-      for (const parser of parsers) {
-        logger.info(`Parsing ${parser.displayName} dependencies...`);
-        const result = await parser.parse(context.rootDir);
-
-        // Filter based on config
-        let deps = result.dependencies;
-        if (!sbomConfig.includeTransitive) {
-          deps = deps.filter((d) => d.isDirect);
-        }
-
-        // Apply ignore list
-        if (sbomConfig.ignoredPackages.length > 0) {
-          deps = deps.filter((d) => {
-            const nameVersion = `${d.name}@${d.version}`;
-            return !sbomConfig.ignoredPackages.includes(d.name) &&
-              !sbomConfig.ignoredPackages.includes(nameVersion);
-          });
-        }
-
-        allDependencies.push(...deps);
-        logger.info(`  Found ${deps.length} dependencies`);
-      }
+      
+      logger.info(`  Found ${allDependencies.length} total dependencies`);
 
       if (allDependencies.length === 0) {
         logger.info('No dependencies found to check');

@@ -15,7 +15,13 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
-  "keywords": ["security", "cli", "secrets", "sbom", "e2e"],
+  "keywords": [
+    "security",
+    "cli",
+    "secrets",
+    "sbom",
+    "e2e"
+  ],
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
@@ -29,8 +35,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^1.6.0",
-    "@types/node": "^20.14.0"
+    "@types/node": "^20.14.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.0"
   }
 }

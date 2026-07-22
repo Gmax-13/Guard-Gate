@@ -53,7 +53,7 @@ e2e:
   targetUrl: "http://localhost:3001"
   # Path to flow files (relative to config file)
   flowFiles:
-    - "examples/flows/login-flow.yml"
+    - "flows/login-flow.yml"
   # Target browser: chromium, firefox, webkit
   browser: chromium
   # Run headlessly or with a browser window

@@ -48,4 +48,17 @@ export const DEFAULT_CONFIG: GuardGateConfig = {
     stepTimeout: 30000,
     screenshotOnFailure: true,
   },
+  api: {
+    enabled: true,
+    targetUrl: undefined,
+    flowFiles: [],
+    variables: {},
+    timeout: 10000,
+  },
+  sast: {
+    enabled: true,
+    severityThreshold: 'medium',
+    extensions: ['.py', '.js', '.ts'],
+    exclude: ['node_modules/**', 'dist/**', 'build/**'],
+  },
 };

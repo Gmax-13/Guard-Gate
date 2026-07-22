@@ -1,0 +1,127 @@
+{
+  "version": "0.1.0",
+  "timestamp": "2026-07-22T07:56:11.238Z",
+  "repository": {
+    "url": "https://github.com/Gmax-13/Guard-Gate.git",
+    "branch": "main",
+    "commitSha": "050900b2e7fc656ce0211fdfb1aa3d58099b725c"
+  },
+  "summary": {
+    "passed": false,
+    "totalFindings": 2,
+    "findingsBySeverity": {
+      "info": 0,
+      "low": 0,
+      "medium": 0,
+      "high": 1,
+      "critical": 1
+    },
+    "moduleStatus": {
+      "e2e": false
+    }
+  },
+  "modules": [
+    {
+      "module": "e2e",
+      "passed": false,
+      "findingCount": 2,
+      "findingsBySeverity": {
+        "info": 0,
+        "low": 0,
+        "medium": 0,
+        "high": 1,
+        "critical": 1
+      },
+      "findings": [
+        {
+          "id": "e2e-0",
+          "module": "e2e",
+          "ruleId": "auth-bypass-no-session",
+          "ruleName": "Auth Bypass — No Session",
+          "severity": "critical",
+          "message": "Protected route /dashboard returned HTTP 200 without any session cookies. Possible authentication bypass.",
+          "evidence": [
+            {
+              "type": "request",
+              "label": "Request details",
+              "data": "{\"url\":\"http://localhost:3001/dashboard\",\"method\":\"GET\",\"status\":200}"
+            }
+          ],
+          "metadata": {
+            "flowName": "login-flow",
+            "pluginName": "authBypassCheck",
+            "pluginType": "security",
+            "url": "http://localhost:3001/dashboard",
+            "status": 200
+          }
+        },
+        {
+          "id": "e2e-1",
+          "module": "e2e",
+          "ruleId": "rate-limit-missing",
+          "ruleName": "No Login Rate Limiting",
+          "severity": "high",
+          "message": "Sent 10 rapid failed login attempts to http://localhost:3001/login without triggering rate limiting or lockout. The login endpoint is vulnerable to brute-force attacks.",
+          "evidence": [
+            {
+              "type": "snippet",
+              "label": "Login attempt results",
+              "data": "[{\"attempt\":1,\"status\":401},{\"attempt\":2,\"status\":401},{\"attempt\":3,\"status\":401},{\"attempt\":4,\"status\":401},{\"attempt\":5,\"status\":401},{\"attempt\":6,\"status\":401},{\"attempt\":7,\"status\":401},{\"attempt\":8,\"status\":401},{\"attempt\":9,\"status\":401},{\"attempt\":10,\"status\":401}]"
+            }
+          ],
+          "metadata": {
+            "flowName": "login-flow",
+            "pluginName": "loginRateLimitCheck",
+            "pluginType": "security",
+            "loginUrl": "http://localhost:3001/login",
+            "attempts": 10,
+            "responses": [
+              {
+                "attempt": 1,
+                "status": 401
+              },
+              {
+                "attempt": 2,
+                "status": 401
+              },
+              {
+                "attempt": 3,
+                "status": 401
+              },
+              {
+                "attempt": 4,
+                "status": 401
+              },
+              {
+                "attempt": 5,
+                "status": 401
+              },
+              {
+                "attempt": 6,
+                "status": 401
+              },
+              {
+                "attempt": 7,
+                "status": 401
+              },
+              {
+                "attempt": 8,
+                "status": 401
+              },
+              {
+                "attempt": 9,
+                "status": 401
+              },
+              {
+                "attempt": 10,
+                "status": 401
+              }
+            ]
+          }
+        }
+      ],
+      "durationMs": 18406
+    }
+  ],
+  "durationMs": 18415
+}

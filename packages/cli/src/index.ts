@@ -217,6 +217,10 @@ async function loadScannerModule(name: string): Promise<Scanner | null> {
         const { SbomScanner } = await import('./scanners/sbom/index.js');
         return new SbomScanner();
       }
+      case 'sast': {
+        const { SastScanner } = await import('./scanners/sast/index.js');
+        return new SastScanner();
+      }
       case 'e2e': {
         const { E2eScanner } = await import('./scanners/e2e/index.js');
         return new E2eScanner();
@@ -243,6 +247,7 @@ async function runAllPhased(
   const PHASES = [
     { name: 'secrets', label: 'Secrets Scanner' },
     { name: 'sbom',    label: 'SBOM / Dependency Scanner' },
+    { name: 'sast',    label: 'SAST (Static Analysis)' },
     { name: 'e2e',     label: 'E2E Security Tests' },
   ];
 
@@ -416,6 +421,20 @@ addScanOptions(
   process.exit(report.summary.passed ? 0 : 1);
 });
 
+// ─── scan sast ────────────────────────────────────────────────────────
+addScanOptions(
+  scanCmd
+    .command('sast')
+    .description('Scan backend source code for insecure patterns (SAST)'),
+).action(async (options) => {
+  const { context, config } = await resolveScanContext(options);
+  const scanner = await loadScannerModule('sast');
+  if (!scanner) process.exit(1);
+
+  const report = await runScanners([scanner], context, config);
+  process.exit(report.summary.passed ? 0 : 1);
+});
+
 // ─── scan e2e ─────────────────────────────────────────────────────────
 addScanOptions(
   scanCmd
@@ -429,6 +448,73 @@ addScanOptions(
   const report = await runScanners([scanner], context, config);
   process.exit(report.summary.passed ? 0 : 1);
 });
+
+// ─── help command ───────────────────────────────────────────────────────
+program
+  .command('help')
+  .description('Display help information')
+  .action(() => {
+    program.help();
+  });
+
+// ─── agent command ──────────────────────────────────────────────────────
+program
+  .command('agent')
+  .description('Output detailed instructions for AI agents to generate E2E workflows')
+  .action(() => {
+    const prompt = `
+# GuardGate Agent Instructions
+
+You are an AI Agent assisting the user with setting up E2E security test flows for GuardGate.
+
+## Objective
+Your task is to analyze the user's web application and generate E2E security testing flow files in YAML format.
+
+## File Locations
+- Workflows MUST be saved in the \`.guardgate/flows/\` directory.
+- After creating a workflow, you MUST register its path in the user's \`guardgate.config.yml\` under \`e2e.flowFiles\`.
+
+## Naming Convention
+Workflow files must follow this strict naming convention:
+\`guardgate_[module_targeted]_[action_performed].yml\`
+(e.g., \`guardgate_auth_login_bypass.yml\`, \`guardgate_profile_xss_injection.yml\`)
+
+## Workflow Format (YAML)
+GuardGate flows are Playwright-based YAML files. Here is the exact schema:
+
+\`\`\`yaml
+name: "Description of the flow"
+steps:
+  - action: "goto" | "click" | "fill" | "assert" | "extract"
+    target: "CSS Selector or URL"
+    value: "Text to fill or assertion value"
+    plugin: "Name of the assertion plugin (for assert action)"
+    storeAs: "Variable name (for extract action)"
+\`\`\`
+
+### Supported Actions
+- \`goto\`: Navigate to a URL (target: URL).
+- \`fill\`: Fill an input field (target: selector, value: text).
+- \`click\`: Click an element (target: selector).
+- \`assert\`: Run a security assertion (target: URL or empty, plugin: plugin name).
+- \`extract\`: Extract text or attribute (target: selector, storeAs: variable).
+
+### Available Assertion Plugins
+- \`xss-reflected\`: Submits XSS payloads and checks if they are reflected in the DOM without sanitization.
+- \`sql-injection\`: Submits SQLi payloads (e.g. \`' OR '1'='1\`) and checks for DB errors or bypasses.
+- \`csrf\`: Submits a state-changing form without a CSRF token to see if it succeeds.
+- \`auth-bypass\`: Attempts to access protected routes without a valid session.
+- \`idor\`: Attempts to access or modify resources belonging to another user.
+
+## Instructions for the Agent
+1. **Analyze**: Use \`list_dir\` and \`view_file\` to find the web application's routes, forms (login, signup, data mutation), and API endpoints.
+2. **Generate**: Create 2-3 E2E test flows targeting the most critical paths (e.g. authentication, profile update).
+3. **Save**: Save these files directly into \`<project-root>/.guardgate/flows/\` (create the directory if it doesn't exist) following the naming convention.
+4. **Register**: Modify \`guardgate.config.yml\` to append the newly created flow files to the \`e2e.flowFiles\` list.
+5. **Run**: Propose to the user to run \`guardgate scan e2e\` to verify the new flows.
+`;
+    console.log(prompt.trim());
+  });
 
 // ─── Parse and execute ───────────────────────────────────────────────
 program.parse();

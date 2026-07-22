@@ -562,6 +562,8 @@ endpoints:
     assert:
       status: 200
       plugin: "sql-injection"
+      matchBody: "syntax error|admin" # Optional: Check response body for vulnerable string
+      notMatchBody: "safe" # Optional: Check response body does NOT contain string
 \`\`\`
 
 ---

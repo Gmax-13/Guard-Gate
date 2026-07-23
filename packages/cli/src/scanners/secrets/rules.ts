@@ -32,7 +32,7 @@ export const BUILT_IN_RULES: SecretRule[] = [
     id: 'aws-access-key-id',
     name: 'AWS Access Key ID',
     description: 'Detects AWS Access Key IDs (starts with AKIA)',
-    regex: /(?:^|[^A-Za-z0-9/+=])(?:AKIA[0-9A-Z]{16})(?:[^A-Za-z0-9/+=]|$)/g,
+    regex: /(?:^|[^A-Za-z0-9/+])(?:AKIA[0-9A-Z]{16})(?:[^A-Za-z0-9/+=]|$)/g,
     severity: Severity.CRITICAL,
     keywords: ['aws', 'access_key', 'AWS_ACCESS_KEY_ID'],
   },

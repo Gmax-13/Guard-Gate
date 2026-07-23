@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { logger } from '../../utils/logger.js';
-import { Severity, type ModuleResult, type Finding } from '../../types/report.js';
+import { Severity, SEVERITY_WEIGHT, type ModuleResult, type Finding } from '../../types/report.js';
 import type { Scanner, ScanContext } from '../../types/scanner.js';
 import type { ApiConfig } from '../../config/schema.js';
 import { parseApiFlow } from './parser.js';
@@ -56,8 +56,13 @@ export class ApiScanner implements Scanner {
         }
       }
 
-      // API scanner fails if any findings exist (since they represent successful exploits/bypasses)
-      const passed = findings.length === 0;
+      // Determine pass/fail using severity threshold (consistent with other modules)
+      const threshold = config.severityThreshold ?? context.severityThreshold;
+      const thresholdWeight = SEVERITY_WEIGHT[threshold as Severity] ?? SEVERITY_WEIGHT[Severity.HIGH];
+      const hasFailingFindings = findings.some(
+        (f) => SEVERITY_WEIGHT[f.severity] >= thresholdWeight,
+      );
+      const passed = !hasFailingFindings;
 
       return this.buildResult(passed, findings, findingsBySeverity, startTime);
     } catch (err) {

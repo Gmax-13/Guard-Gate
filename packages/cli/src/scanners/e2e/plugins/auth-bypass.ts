@@ -66,49 +66,54 @@ export class AuthBypassPlugin implements AssertionPlugin {
       }
     }
 
-    // Also test by clearing cookies and trying to access the page
+    // Also test by clearing cookies and trying to access the page — only for protected routes
     try {
-      // Save current cookies
-      const savedCookies = await context.browserContext.cookies();
-
-      // Clear all cookies
-      await context.browserContext.clearCookies();
-
-      // Try to navigate to the current page
       const currentUrl = context.page.url();
-      const response = await context.page.goto(currentUrl, { waitUntil: 'domcontentloaded' });
+      const currentPath = new URL(currentUrl).pathname;
+      const isProtectedRoute = protectedPatterns.some((pattern) => pattern.test(currentPath));
 
-      if (response && response.status() === 200) {
-        // Check if we're redirected to a login page
-        const finalUrl = context.page.url();
-        const isLoginPage =
-          finalUrl.includes('login') ||
-          finalUrl.includes('signin') ||
-          finalUrl.includes('auth');
+      if (isProtectedRoute) {
+        // Save current cookies
+        const savedCookies = await context.browserContext.cookies();
 
-        if (!isLoginPage) {
-          results.push({
-            pluginName: this.name,
-            pluginType: this.type,
-            checkId: 'auth-bypass-cleared-cookies',
-            checkName: 'Auth Bypass — Cleared Cookies',
-            passed: false,
-            message: `Accessing ${currentUrl} after clearing cookies returned HTTP ${response.status()} and did not redirect to login. Possible auth bypass.`,
-            severity: 'critical',
-            evidence: [
-              {
-                type: 'snippet',
-                label: 'Final URL after clearing cookies',
-                data: finalUrl,
-              },
-            ],
-          });
+        // Clear all cookies
+        await context.browserContext.clearCookies();
+
+        // Try to navigate to the current page
+        const response = await context.page.goto(currentUrl, { waitUntil: 'domcontentloaded' });
+
+        if (response && response.status() === 200) {
+          // Check if we're redirected to a login page
+          const finalUrl = context.page.url();
+          const isLoginPage =
+            finalUrl.includes('login') ||
+            finalUrl.includes('signin') ||
+            finalUrl.includes('auth');
+
+          if (!isLoginPage) {
+            results.push({
+              pluginName: this.name,
+              pluginType: this.type,
+              checkId: 'auth-bypass-cleared-cookies',
+              checkName: 'Auth Bypass — Cleared Cookies',
+              passed: false,
+              message: `Accessing ${currentUrl} after clearing cookies returned HTTP ${response.status()} and did not redirect to login. Possible auth bypass.`,
+              severity: 'critical',
+              evidence: [
+                {
+                  type: 'snippet',
+                  label: 'Final URL after clearing cookies',
+                  data: finalUrl,
+                },
+              ],
+            });
+          }
         }
-      }
 
-      // Restore cookies
-      if (savedCookies.length > 0) {
-        await context.browserContext.addCookies(savedCookies);
+        // Restore cookies
+        if (savedCookies.length > 0) {
+          await context.browserContext.addCookies(savedCookies);
+        }
       }
     } catch {
       // Ignore navigation errors in auth bypass check

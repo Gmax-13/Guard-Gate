@@ -24,7 +24,7 @@ export class SessionCookieFlagsPlugin implements AssertionPlugin {
       /token/i,
       /auth/i,
       /jwt/i,
-      /sid/i,
+      /\bsid\b/i,
       /connect\.sid/i,
       /PHPSESSID/i,
       /JSESSIONID/i,

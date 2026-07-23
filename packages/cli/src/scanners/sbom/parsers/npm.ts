@@ -163,7 +163,11 @@ export class NpmParser implements EcosystemParser {
   }
 }
 
-/** Strip semver range characters to get a clean version string. */
+/**
+ * Extract a clean version string from a semver range.
+ * Handles compound ranges like ">=4.16.0 <5.0.0" by taking the first concrete version.
+ */
 function cleanVersion(version: string): string {
-  return version.replace(/^[\^~>=<]+/, '').trim();
+  const match = version.match(/(\d+\.\d+\.\d+(?:-[\w.]+)?)/);
+  return match ? match[1] : version.replace(/^[\^~>=<\s]+/, '').trim();
 }

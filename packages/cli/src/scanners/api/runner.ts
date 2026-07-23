@@ -63,7 +63,7 @@ export async function runApiEndpoint(
 
     if (vulnerable) {
       findings.push({
-        id: `api-${endpoint.assert.plugin || 'fuzz'}-${Date.now()}`,
+        id: `api-${endpoint.assert.plugin || 'fuzz'}-${crypto.randomUUID()}`,
         module: 'api',
         ruleId: endpoint.assert.plugin || 'body-match',
         ruleName: `API Vulnerability`,
@@ -86,16 +86,8 @@ export async function runApiEndpoint(
 
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    logger.debug(`API request failed: ${errMsg}`);
-    findings.push({
-      id: `api-unreachable-${Date.now()}`,
-      module: 'api',
-      ruleId: 'unreachable',
-      ruleName: 'API Unreachable',
-      severity: Severity.CRITICAL,
-      message: `API request failed (is the server running?): ${errMsg}`,
-      evidence: [{ type: 'request', label: 'URL', data: fullUrl }]
-    });
+    logger.warn(`API request failed for ${fullUrl} (is the server running?): ${errMsg}`);
+    // Don't report connectivity issues as security findings — they're operational errors
   }
 
   return findings;

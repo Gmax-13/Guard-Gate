@@ -18,6 +18,7 @@ import {
   isBinaryFile,
   isSkippedDirectory,
   isSkippedFile,
+  isTestFixture,
 } from './allowlist.js';
 import { logger } from '../../utils/logger.js';
 
@@ -80,6 +81,9 @@ export async function scanFiles(options: FileScanOptions): Promise<Finding[]> {
 
     // Skip lockfiles and other generated files
     if (isSkippedFile(relativePath)) continue;
+
+    // Skip test fixtures, examples, and sample files
+    if (isTestFixture(relativePath)) continue;
 
     // Skip directories in the always-skip list
     const dirParts = relativePath.split(/[/\\]/);

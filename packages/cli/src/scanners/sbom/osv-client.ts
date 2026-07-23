@@ -152,12 +152,10 @@ export function extractCvssScore(vuln: OsvVulnerability): number | undefined {
 
   for (const sev of vuln.severity) {
     if (sev.type === 'CVSS_V3') {
-      // CVSS vector string — extract the score
-      const scoreMatch = sev.score.match(/^CVSS:3\.\d+\/.*$/);
-      if (scoreMatch) {
-        // Parse the CVSS score from the vector — simplified
-        // In practice, you'd use a CVSS calculator
-        return undefined; // Will use severity rating instead
+      // Try parsing CVSS v3 vector string first
+      if (sev.score.startsWith('CVSS:')) {
+        const score = parseCvssV3Vector(sev.score);
+        if (score !== undefined) return score;
       }
       // If it's a plain number
       const num = parseFloat(sev.score);
@@ -166,6 +164,76 @@ export function extractCvssScore(vuln: OsvVulnerability): number | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Parse a CVSS v3.x vector string and compute the base score.
+ * Implements the CVSS v3.1 specification base score equations.
+ * https://www.first.org/cvss/v3.1/specification-document
+ */
+function parseCvssV3Vector(vector: string): number | undefined {
+  // Extract metric values from vector string
+  const metrics = new Map<string, string>();
+  const parts = vector.split('/');
+  for (const part of parts) {
+    const [key, value] = part.split(':');
+    if (key && value) {
+      metrics.set(key, value);
+    }
+  }
+
+  // Metric value lookups (per CVSS v3.1 spec)
+  const AV: Record<string, number> = { N: 0.85, A: 0.62, L: 0.55, P: 0.2 };
+  const AC: Record<string, number> = { L: 0.77, H: 0.44 };
+  const PR_UNCHANGED: Record<string, number> = { N: 0.85, L: 0.62, H: 0.27 };
+  const PR_CHANGED: Record<string, number> = { N: 0.85, L: 0.68, H: 0.50 };
+  const UI: Record<string, number> = { N: 0.85, R: 0.62 };
+  const CIA: Record<string, number> = { H: 0.56, L: 0.22, N: 0 };
+
+  const av = AV[metrics.get('AV') ?? ''];
+  const ac = AC[metrics.get('AC') ?? ''];
+  const ui = UI[metrics.get('UI') ?? ''];
+  const s = metrics.get('S');
+  const c = CIA[metrics.get('C') ?? ''];
+  const i = CIA[metrics.get('I') ?? ''];
+  const a = CIA[metrics.get('A') ?? ''];
+
+  if (av === undefined || ac === undefined || ui === undefined ||
+      s === undefined || c === undefined || i === undefined || a === undefined) {
+    return undefined;
+  }
+
+  const scopeChanged = s === 'C';
+  const prLookup = scopeChanged ? PR_CHANGED : PR_UNCHANGED;
+  const pr = prLookup[metrics.get('PR') ?? ''];
+  if (pr === undefined) return undefined;
+
+  // ISS = 1 - [(1 - C) × (1 - I) × (1 - A)]
+  const iss = 1 - (1 - c) * (1 - i) * (1 - a);
+
+  // Impact
+  let impact: number;
+  if (scopeChanged) {
+    impact = 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15);
+  } else {
+    impact = 6.42 * iss;
+  }
+
+  if (impact <= 0) return 0;
+
+  // Exploitability = 8.22 × AV × AC × PR × UI
+  const exploitability = 8.22 * av * ac * pr * ui;
+
+  // Base Score
+  let baseScore: number;
+  if (scopeChanged) {
+    baseScore = Math.min(1.08 * (impact + exploitability), 10);
+  } else {
+    baseScore = Math.min(impact + exploitability, 10);
+  }
+
+  // Round up to one decimal place (per spec: "round up")
+  return Math.ceil(baseScore * 10) / 10;
 }
 
 /**
@@ -179,3 +247,4 @@ export function deriveSeverity(cvssScore?: number): string {
   if (cvssScore >= 0.1) return 'low';
   return 'info';
 }
+

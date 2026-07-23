@@ -37,6 +37,12 @@ export class NpmParser implements EcosystemParser {
       return this.parseLockfile(lockPath, rootDir);
     }
 
+    // Try yarn.lock (v1 or berry format)
+    const yarnLock = join(rootDir, 'yarn.lock');
+    if (existsSync(yarnLock)) {
+      return this.parseYarnLock(yarnLock, rootDir);
+    }
+
     // Fall back to package.json (direct deps only)
     const pkgPath = join(rootDir, 'package.json');
     if (existsSync(pkgPath)) {

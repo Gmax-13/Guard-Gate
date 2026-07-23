@@ -201,7 +201,7 @@ async function runScanners(
   };
 
   if (config.baseline) {
-    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity);
+    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity, config.outputDir);
   }
 
   // Output the report
@@ -400,7 +400,7 @@ async function runAllPhased(
   };
 
   if (config.baseline) {
-    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity);
+    await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity, config.outputDir);
   }
 
   // Output

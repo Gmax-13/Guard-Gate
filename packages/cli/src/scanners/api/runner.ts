@@ -1,6 +1,7 @@
 import type { ApiEndpoint } from './parser.js';
 import type { Finding } from '../../types/report.js';
 import { Severity } from '../../types/report.js';
+import { randomUUID } from 'node:crypto';
 import { logger } from '../../utils/logger.js';
 
 export async function runApiEndpoint(
@@ -63,7 +64,7 @@ export async function runApiEndpoint(
 
     if (vulnerable) {
       findings.push({
-        id: `api-${endpoint.assert.plugin || 'fuzz'}-${crypto.randomUUID()}`,
+        id: `api-${endpoint.assert.plugin || 'fuzz'}-${randomUUID()}`,
         module: 'api',
         ruleId: endpoint.assert.plugin || 'body-match',
         ruleName: `API Vulnerability`,

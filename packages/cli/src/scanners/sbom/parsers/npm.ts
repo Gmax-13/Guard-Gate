@@ -137,6 +137,99 @@ export class NpmParser implements EcosystemParser {
     }
   }
 
+  /**
+   * Parse yarn.lock (v1 indentation-based format or berry v2+).
+   * Extracts package names and resolved versions.
+   */
+  private parseYarnLock(yarnLockPath: string, rootDir: string): ParseResult {
+    try {
+      const content = readFileSync(yarnLockPath, 'utf-8');
+      const dependencies: Dependency[] = [];
+
+      // Read direct deps from package.json for isDirect flagging
+      const directDeps = new Set<string>();
+      const pkgPath = join(rootDir, 'package.json');
+      if (existsSync(pkgPath)) {
+        try {
+          const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+          for (const name of Object.keys(pkg.dependencies ?? {})) {
+            directDeps.add(name);
+          }
+          for (const name of Object.keys(pkg.devDependencies ?? {})) {
+            directDeps.add(name);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
+      // Track seen packages to avoid duplicates (yarn.lock can list
+      // the same package under multiple version specifiers)
+      const seen = new Set<string>();
+
+      // Parse yarn.lock v1 format:
+      //   "package-name@^1.2.3", "package-name@~1.2.0":
+      //     version "1.2.4"
+      //     resolved "..."
+      //     dependencies:
+      //       dep-a "^2.0.0"
+      //
+      // Also handles scoped packages like "@scope/pkg@^1.0.0":
+      const lines = content.split('\n');
+      let currentNames: string[] = [];
+
+      for (const line of lines) {
+        // Skip comments and empty lines
+        if (line.startsWith('#') || line.trim() === '') continue;
+
+        // Package header line (not indented)
+        if (!line.startsWith(' ') && !line.startsWith('\t')) {
+          currentNames = [];
+          // Extract package names from header
+          // e.g.: "lodash@^4.17.21", "lodash@~4.17.0":
+          // e.g.: "@babel/core@^7.0.0":
+          const headerEntries = line.replace(/:$/, '').split(',').map(s => s.trim());
+          for (const entry of headerEntries) {
+            // Remove surrounding quotes
+            const unquoted = entry.replace(/^"/, '').replace(/"$/, '');
+            // Extract package name (everything before the last @version)
+            // Handle scoped packages: @scope/name@version
+            const atIdx = unquoted.lastIndexOf('@');
+            if (atIdx > 0) {
+              currentNames.push(unquoted.substring(0, atIdx));
+            }
+          }
+          continue;
+        }
+
+        // Version line (indented)
+        const versionMatch = line.match(/^\s+version\s+"?([^"]+)"?/);
+        if (versionMatch && currentNames.length > 0) {
+          const version = versionMatch[1];
+          for (const name of currentNames) {
+            const key = `${name}@${version}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              dependencies.push({
+                name,
+                version,
+                ecosystem: 'npm',
+                isDirect: directDeps.has(name),
+              });
+            }
+          }
+          currentNames = [];
+        }
+      }
+
+      logger.debug(`npm (yarn.lock): found ${dependencies.length} dependencies`);
+      return { ecosystem: 'npm', dependencies, sourceFile: yarnLockPath };
+    } catch (err) {
+      logger.warn(`Failed to parse yarn.lock: ${err}`);
+      return { ecosystem: 'npm', dependencies: [], sourceFile: yarnLockPath };
+    }
+  }
+
   private parsePackageJson(pkgPath: string): ParseResult {
     try {
       const content = JSON.parse(readFileSync(pkgPath, 'utf-8'));

@@ -76,11 +76,6 @@ async function verifyAwsKey(secretKey: string, contextFindings: Finding[]): Prom
   const accessKeyFinding = contextFindings.find(f => f.ruleId === 'aws-access-key-id');
   if (!accessKeyFinding) return 'UNKNOWN';
 
-  // We only have the masked message, but wait, contextFindings here shouldn't just be the finding objects
-  // Wait, in file-scanner.ts, findings only contain the masked secret.
-  // We need the raw access key!
-  // I will modify file-scanner.ts to pass raw context, or extract it.
-  // Since we haven't modified file-scanner.ts yet, let's assume contextFindings contains a metadata.rawSecret field for AWS access keys.
   const accessKey = (accessKeyFinding.metadata?.rawSecret as string) || '';
   if (!accessKey) return 'UNKNOWN';
 

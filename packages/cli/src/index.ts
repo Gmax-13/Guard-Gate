@@ -214,12 +214,11 @@ async function runScanners(
   // AI Remediation
   const aiConfig = (config as any).ai || {};
   const shouldRemediate = aiConfig.remediation || (process.argv.includes('--remediate'));
+  const shouldApply = process.argv.includes('--apply-remediations');
   
-  if (shouldRemediate) {
+  if (shouldRemediate || shouldApply) {
     await generateRemediations(report, aiConfig, context.rootDir);
-    if (process.argv.includes('--remediate')) {
-      applyRemediations(report, context.rootDir);
-    }
+    applyRemediations(report, context.rootDir, shouldApply);
   }
 
   // Output the report

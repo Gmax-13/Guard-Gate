@@ -40,7 +40,7 @@ export const BUILT_IN_RULES: SecretRule[] = [
     id: 'aws-secret-access-key',
     name: 'AWS Secret Access Key',
     description: 'Detects AWS Secret Access Keys (40-char base64)',
-    regex: /(?:aws_secret_access_key|aws_secret_key|secret_access_key)\s*[=:]\s*['"]?([A-Za-z0-9/+=]{40})['"]?/gi,
+    regex: /(?:aws_secret_access_key|aws_secret_key|secret_access_key)\s*[=:]\s*['"]?([A-Za-z0-9/+=]{40})(?:['"]|$|\s)/gi,
     severity: Severity.CRITICAL,
     keywords: ['aws', 'secret_key', 'AWS_SECRET_ACCESS_KEY'],
   },

@@ -102,6 +102,35 @@ function resolveRefs(obj: any, root: any, path: string[] = []): any {
   for (const [key, value] of Object.entries(obj)) {
     result[key] = resolveRefs(value, root, path);
   }
+
+  if (result.allOf && Array.isArray(result.allOf)) {
+    const merged: any = { ...result, type: 'object', properties: { ...(result.properties || {}) }, required: [...(result.required || [])] };
+    delete merged.allOf;
+    
+    for (const member of result.allOf) {
+      if (member && typeof member === 'object') {
+        if (member.properties) {
+          Object.assign(merged.properties, member.properties);
+        }
+        if (Array.isArray(member.required)) {
+          merged.required.push(...member.required);
+        }
+      }
+    }
+    merged.required = [...new Set(merged.required)];
+    return merged;
+  }
+  
+  if (result.oneOf && Array.isArray(result.oneOf) && result.oneOf.length > 0) {
+    // Fallback to first branch
+    return { ...result, ...result.oneOf[0] };
+  }
+  
+  if (result.anyOf && Array.isArray(result.anyOf) && result.anyOf.length > 0) {
+    // Fallback to first branch
+    return { ...result, ...result.anyOf[0] };
+  }
+
   return result;
 }
 

@@ -64,11 +64,14 @@ function substitutePayload(obj: any, payload: string): any {
   return obj;
 }
 
-async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: number, payload?: string, authState?: AuthState) {
+async function fetchEndpoint(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, payload?: string, authState?: AuthState) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
-  const finalUrl = payload ? substitutePayload(url, payload) : url;
+  const finalPath = payload ? substitutePayload(endpoint.path, payload) : endpoint.path;
+  const finalQuery = payload && endpoint.query ? substitutePayload(endpoint.query, payload) : endpoint.query;
+  const finalUrl = buildUrl(targetUrl, finalPath, finalQuery);
+  
   const finalHeaders = payload && endpoint.headers ? substitutePayload(endpoint.headers, payload) : { ...endpoint.headers };
   const finalBody = payload && endpoint.body ? substitutePayload(endpoint.body, payload) : endpoint.body;
 
@@ -92,7 +95,9 @@ async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: numb
     });
     const status = res.status;
     const body = await res.text();
-    return { status, body, requestUrl: finalUrl, requestBody: finalBody };
+    const headers: Record<string, string> = {};
+    res.headers.forEach((value, key) => headers[key] = value);
+    return { status, body, headers, requestUrl: finalUrl, requestBody: finalBody };
   } finally {
     clearTimeout(id);
   }
@@ -100,10 +105,9 @@ async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: numb
 
 async function runDifferential(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
   const diff = endpoint.differential!;
-  const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
 
-  const resTrue = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.true, authState);
-  const resFalse = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.false, authState);
+  const resTrue = await fetchEndpoint(endpoint, targetUrl, timeoutMs, diff.payloads.true, authState);
+  const resFalse = await fetchEndpoint(endpoint, targetUrl, timeoutMs, diff.payloads.false, authState);
 
   let vulnerable = false;
   let reason = '';
@@ -151,12 +155,11 @@ async function runIdorCrossTenant(endpoint: ApiEndpoint, targetUrl: string, time
     return;
   }
 
-  const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
   const stateA = authStates[idor.authProfiles[0]];
   const stateB = authStates[idor.authProfiles[1]];
 
-  const resA = await fetchEndpoint(endpoint, url, timeoutMs, undefined, stateA);
-  const resB = await fetchEndpoint(endpoint, url, timeoutMs, undefined, stateB);
+  const resA = await fetchEndpoint(endpoint, targetUrl, timeoutMs, undefined, stateA);
+  const resB = await fetchEndpoint(endpoint, targetUrl, timeoutMs, undefined, stateB);
 
   // If both requests succeeded (200-299) for a specific resource, it might be an IDOR
   // Note: we assume the generated path has a dummy UUID that simulates a private resource
@@ -197,9 +200,8 @@ function checkJsonPath(obj: any, path: string): boolean {
 
 async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
   const probe = endpoint.massAssignmentProbe!;
-  const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
 
-  const res = await fetchEndpoint(endpoint, url, timeoutMs, undefined, authState);
+  const res = await fetchEndpoint(endpoint, targetUrl, timeoutMs, undefined, authState);
 
   if (probe.assert.statusNotIn && probe.assert.statusNotIn.includes(res.status)) {
     return; // Rejected by validation, safe
@@ -215,19 +217,58 @@ async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeo
       }
     }
 
+    let isSilentPersistence = false;
+    if (matchedPaths.length === 0 && res.status >= 200 && res.status < 300) {
+      // Attempt follow-up read
+      let resourceUrl: string | null = null;
+      if (res.headers['location']) {
+        resourceUrl = new URL(res.headers['location'], res.requestUrl).toString();
+      } else if (jsonBody.id || jsonBody._id) {
+        // e.g., POST /api/users -> GET /api/users/{id}
+        const id = jsonBody.id || jsonBody._id;
+        resourceUrl = `${res.requestUrl.replace(/\/$/, '')}/${id}`;
+      }
+
+      if (resourceUrl) {
+        // We do a GET using the same auth
+        const followUpEndpoint: ApiEndpoint = {
+          path: new URL(resourceUrl).pathname,
+          method: 'GET',
+          query: {},
+          headers: endpoint.headers,
+          assert: {}
+        };
+        const resFollowUp = await fetchEndpoint(followUpEndpoint, targetUrl, timeoutMs, undefined, authState);
+        if (resFollowUp.status >= 200 && resFollowUp.status < 300) {
+          try {
+            const followUpJson = JSON.parse(resFollowUp.body);
+            for (const path of probe.assert.jsonPathPresent) {
+              if (checkJsonPath(followUpJson, path)) {
+                matchedPaths.push(path);
+              }
+            }
+            if (matchedPaths.length > 0) isSilentPersistence = true;
+          } catch {}
+        }
+      }
+    }
+
     if (matchedPaths.length > 0) {
+      const typeDesc = isSilentPersistence ? 'persisted (silent)' : 'echoed';
       findings.push({
         id: `api-mass-${probe.ruleId}-${randomUUID()}`,
         module: 'api',
         ruleId: probe.ruleId,
         ruleName: 'Mass Assignment Vulnerability',
         severity: probe.severity as Severity,
-        message: `Mass assignment detected! Injected fields persisted/echoed: ${matchedPaths.join(', ')}`,
+        message: `Mass assignment detected! Injected fields were ${typeDesc}: ${matchedPaths.join(', ')}`,
         evidence: [
           { type: 'request', label: 'Request Data', data: JSON.stringify({ url: res.requestUrl, body: res.requestBody }) },
           { type: 'response', label: 'Response Body', data: res.body.slice(0, 1000) },
         ],
       });
+    } else {
+      // Note: We might want to warn if we couldn't do a follow-up read, but we don't want to spam false positives.
     }
   } catch {
     // If not JSON, we can't reliably assert structured assignment.
@@ -235,8 +276,7 @@ async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeo
 }
 
 async function runStandard(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
-  const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
-  const res = await fetchEndpoint(endpoint, url, timeoutMs, undefined, authState);
+  const res = await fetchEndpoint(endpoint, targetUrl, timeoutMs, undefined, authState);
 
   let vulnerable = false;
   let reason = '';

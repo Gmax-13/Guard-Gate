@@ -12,8 +12,17 @@ export function parseAndScanPython(filePath: string, customRules: CodeCustomRule
   const tree = parser.parse(sourceText);
 
   const findings: CodeFinding[] = [];
+  const variableDeclarations = new Map<string, Parser.SyntaxNode>();
 
   function walk(node: Parser.SyntaxNode) {
+    if (node.type === 'assignment') {
+      const left = node.childForFieldName('left');
+      const right = node.childForFieldName('right');
+      if (left && right && left.type === 'identifier') {
+        variableDeclarations.set(left.text, right);
+      }
+    }
+
     // 1. Evaluate custom rules
     for (const rule of customRules) {
       try {
@@ -33,7 +42,7 @@ export function parseAndScanPython(filePath: string, customRules: CodeCustomRule
     }
 
     // 2. Evaluate built-in rules
-    checkBuiltInRules(node, sourceText, filePath, findings);
+    checkBuiltInRules(node, sourceText, filePath, findings, variableDeclarations);
 
     for (const child of node.children) {
       walk(child);
@@ -44,7 +53,13 @@ export function parseAndScanPython(filePath: string, customRules: CodeCustomRule
   return findings;
 }
 
-function checkBuiltInRules(node: Parser.SyntaxNode, sourceText: string, filePath: string, findings: CodeFinding[]) {
+function checkBuiltInRules(
+  node: Parser.SyntaxNode, 
+  sourceText: string, 
+  filePath: string, 
+  findings: CodeFinding[],
+  variableDeclarations: Map<string, Parser.SyntaxNode>
+) {
   const line = node.startPosition.row + 1;
   const getSnippet = () => sourceText.substring(node.startIndex, node.endIndex).split('\n')[0];
 
@@ -129,27 +144,53 @@ function checkBuiltInRules(node: Parser.SyntaxNode, sourceText: string, filePath
         }
       }
       
-      // 4. SQL Injection (f-strings in execute)
+      // 4. SQL Injection (f-strings or concatenation in execute)
       if (fnName === 'execute' || fnName.endsWith('.execute')) {
         const argsNode = node.childForFieldName('arguments');
         if (argsNode && argsNode.namedChildren.length > 0) {
           const firstArg = argsNode.namedChildren[0];
-          // Check if it's an f-string (string_content with interpolation)
-          if (firstArg.type === 'string' && firstArg.text.startsWith('f')) {
-            let hasInterpolation = false;
-            for (const child of firstArg.children) {
-              if (child.type === 'interpolation') hasInterpolation = true;
+          
+          let isDynamic = false;
+
+          const checkNodeIsDynamic = (n: Parser.SyntaxNode): boolean => {
+            if (n.type === 'string' && n.text.startsWith('f')) {
+              for (const child of n.children) {
+                if (child.type === 'interpolation') return true;
+              }
             }
-            if (hasInterpolation) {
-              findings.push({
-                file: filePath,
-                line,
-                snippet: getSnippet(),
-                type: 'SQL Injection',
-                severity: 'high',
-                message: 'Use of f-string in SQL execute() detected. Use parameterized queries instead.',
-              });
+            if (n.type === 'binary_operator') {
+              const op = n.childForFieldName('operator');
+              if (op?.text === '+') return true;
+              // Python % formatting
+              if (op?.text === '%') return true;
             }
+            if (n.type === 'call') {
+              const fn = n.childForFieldName('function');
+              if (fn?.type === 'attribute' && fn.childForFieldName('attribute')?.text === 'format') {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          if (checkNodeIsDynamic(firstArg)) {
+            isDynamic = true;
+          } else if (firstArg.type === 'identifier') {
+            const initializer = variableDeclarations.get(firstArg.text);
+            if (initializer && checkNodeIsDynamic(initializer)) {
+              isDynamic = true;
+            }
+          }
+
+          if (isDynamic) {
+            findings.push({
+              file: filePath,
+              line,
+              snippet: getSnippet(),
+              type: 'SQL Injection',
+              severity: 'high',
+              message: 'Dynamic string concatenation or f-string in SQL execute() detected. Use parameterized queries instead.',
+            });
           }
         }
       }

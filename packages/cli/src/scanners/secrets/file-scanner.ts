@@ -12,6 +12,7 @@ import type { Finding } from '../../types/report.js';
 import { Severity } from '../../types/report.js';
 import type { SecretRule } from './rules.js';
 import { BUILT_IN_RULES } from './rules.js';
+import { verifySecret } from './verifier.js';
 import { findHighEntropyStrings } from './entropy.js';
 import {
   createAllowlistFilter,
@@ -30,13 +31,14 @@ interface FileScanOptions {
   allowlistPatterns: string[];
   entropyThreshold: number;
   customRules: Array<{ id: string; name: string; regex: string; severity: string }>;
+  verifySecrets?: boolean;
 }
 
 /**
  * Scan all files in the working directory for secrets.
  */
 export async function scanFiles(options: FileScanOptions): Promise<Finding[]> {
-  const { rootDir, allowlistPatterns, entropyThreshold, customRules } = options;
+  const { rootDir, allowlistPatterns, entropyThreshold, customRules, verifySecrets } = options;
   const findings: Finding[] = [];
 
   // Build the ignore filter
@@ -129,6 +131,7 @@ export async function scanFiles(options: FileScanOptions): Promise<Finding[]> {
               message: `${rule.description}: ${masked}`,
               filePath: relativePath,
               lineNumber,
+              metadata: { rawSecret: secretValue },
               evidence: [
                 {
                   type: 'snippet',
@@ -171,6 +174,34 @@ export async function scanFiles(options: FileScanOptions): Promise<Finding[]> {
     } catch (err) {
       // Skip files that can't be read (binary, permission issues, etc.)
       logger.debug(`Skipping unreadable file: ${relativePath}`);
+    }
+  }
+
+  if (verifySecrets) {
+    logger.debug(`Verifying ${findings.length} secrets via APIs...`);
+    for (const finding of findings) {
+      if (finding.metadata?.rawSecret) {
+        const rawSecret = finding.metadata.rawSecret as string;
+        const status = await verifySecret(finding.ruleId, rawSecret, findings.filter(f => f.filePath === finding.filePath));
+        
+        if (status === 'ACTIVE') {
+          finding.severity = Severity.CRITICAL;
+          finding.message = `[ACTIVE] ${finding.message}`;
+        } else if (status === 'REVOKED') {
+          finding.severity = Severity.INFO;
+          finding.message = `[REVOKED/INVALID] ${finding.message}`;
+        }
+      }
+    }
+  }
+
+  // Clean up rawSecret so it isn't leaked in reports
+  for (const finding of findings) {
+    if (finding.metadata) {
+      delete finding.metadata.rawSecret;
+      if (Object.keys(finding.metadata).length === 0) {
+        delete finding.metadata;
+      }
     }
   }
 

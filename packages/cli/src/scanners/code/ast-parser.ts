@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 
 import type { CodeCustomRule } from './rules.js';
+import { parseAndScanPython } from './python-parser.js';
 
 export interface CodeFinding {
   file: string;
@@ -25,7 +26,7 @@ export function parseAndScanFile(filePath: string, customRules: CodeCustomRule[]
   }
 
   if (ext === '.py') {
-    return regexScanPython(filePath);
+    return parseAndScanPython(filePath, customRules);
   }
 
   // Fallback: attempt JS/TS AST parse for unknown extensions (existing behavior)

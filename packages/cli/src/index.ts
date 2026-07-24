@@ -64,6 +64,7 @@ function addScanOptions(cmd: Command): Command {
     )
     .option('--format <format>', 'Output format (json|console|both|sarif|all)')
     .option('--baseline <ref>', 'Compare against a baseline git commit to only report new findings')
+    .option('--verify-secrets', 'Dynamically verify detected secrets via API calls')
     .option('--verbose', 'Enable verbose/debug output')
     .option('--quiet', 'Suppress all output except errors');
 }
@@ -94,6 +95,9 @@ async function resolveScanContext(
   }
   if (options.baseline) {
     config.baseline = options.baseline as string;
+  }
+  if (options.verifySecrets) {
+    config.secrets.verifySecrets = true;
   }
 
   // Resolve output directory to absolute path under cwd and ensure it exists

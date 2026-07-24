@@ -70,9 +70,9 @@
 - [x] Baseline fingerprinting for finding deduplication
 
 ### v1.3.0 — Real Python AST Support
-- [ ] Tree-sitter-python or Python `ast` module integration for `.py` files
-- [ ] Python-specific rules: `os.system`/`subprocess` with `shell=True`, `pickle.loads`, `yaml.load` without `SafeLoader`, f-string SQL construction
-- [ ] Replace the TypeScript-parser-for-everything approach with per-language parsing
+- [x] Tree-sitter-python or Python `ast` module integration for `.py` files
+- [x] Python-specific rules: `os.system`/`subprocess` with `shell=True`, `pickle.loads`, `yaml.load` without `SafeLoader`, f-string SQL construction
+- [x] Replace the TypeScript-parser-for-everything approach with per-language parsing
 
 ### v1.4.0 — Live Secret Verification
 - [ ] Harmless verification calls for detected secrets (AWS `sts:GetCallerIdentity`, Stripe balance endpoint, GitHub `/user`)

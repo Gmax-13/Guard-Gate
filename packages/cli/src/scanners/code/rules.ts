@@ -15,7 +15,7 @@ export type CodeCustomRule = {
   id: string;
   severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
   message: string;
-  check: (node: ts.Node, tsApi: typeof ts, context: any) => boolean;
+  check: (node: any, api: any, context: any) => boolean;
 };
 
 export async function loadCodeRules(filePath: string): Promise<CodeCustomRule[]> {

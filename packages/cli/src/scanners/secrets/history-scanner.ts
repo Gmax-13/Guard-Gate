@@ -12,6 +12,7 @@ import { BUILT_IN_RULES } from './rules.js';
 import { findHighEntropyStrings } from './entropy.js';
 import { getCommitHistory, getCommitDiff, createGit } from '../../utils/git.js';
 import { isSkippedFile, isSkippedDirectory, createAllowlistFilter } from './allowlist.js';
+import { verifySecret } from './verifier.js';
 import { logger } from '../../utils/logger.js';
 
 interface HistoryScanOptions {
@@ -20,6 +21,7 @@ interface HistoryScanOptions {
   maxCommits: number;
   entropyThreshold: number;
   customRules: Array<{ id: string; name: string; regex: string; severity: string }>;
+  verifySecrets?: boolean;
 }
 
 /**
@@ -149,6 +151,10 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
                 filePath,
                 lineNumber,
                 commitHash: commit.hash,
+                metadata: {
+                  rawSecret: secretValue,
+                  commitMessage: commit.message,
+                },
                 evidence: [
                   {
                     type: 'snippet',
@@ -156,9 +162,6 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
                     data: maskLine(content, secretValue),
                   },
                 ],
-                metadata: {
-                  commitMessage: commit.message,
-                },
               });
             }
           }
@@ -198,6 +201,38 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
       }
     } catch (err) {
       logger.debug(`Failed to scan commit ${commit.hash}: ${err}`);
+    }
+  }
+
+  if (options.verifySecrets) {
+    logger.debug(`Verifying ${findings.length} secrets via APIs from history...`);
+    for (const finding of findings) {
+      if (finding.metadata?.rawSecret) {
+        const rawSecret = finding.metadata.rawSecret as string;
+        // For history, filter context findings by same file AND commit
+        const contextFindings = findings.filter(
+          f => f.filePath === finding.filePath && f.commitHash === finding.commitHash
+        );
+        const status = await verifySecret(finding.ruleId, rawSecret, contextFindings);
+        
+        if (status === 'ACTIVE') {
+          finding.severity = Severity.CRITICAL;
+          finding.message = `[ACTIVE] ${finding.message}`;
+        } else if (status === 'REVOKED') {
+          finding.severity = Severity.INFO;
+          finding.message = `[REVOKED/INVALID] ${finding.message}`;
+        }
+      }
+    }
+  }
+
+  // Clean up rawSecret
+  for (const finding of findings) {
+    if (finding.metadata) {
+      delete finding.metadata.rawSecret;
+      if (Object.keys(finding.metadata).length === 0) {
+        delete finding.metadata;
+      }
     }
   }
 

@@ -17,6 +17,8 @@ export const secretsConfigSchema = z
     enabled: z.boolean().default(true),
     /** File patterns to ignore (glob) */
     allowlist: z.array(z.string()).default([]),
+    /** Whether to verify secrets with live API calls */
+    verifySecrets: z.boolean().default(false),
     /** Whether to scan git history */
     scanHistory: z.boolean().default(true),
     /** Maximum number of commits to scan in history (0 = unlimited) */

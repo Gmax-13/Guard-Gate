@@ -34,7 +34,7 @@ import type { Scanner, ScanContext } from './types/scanner.js';
 import type { ScanReport, ModuleResult } from './types/report.js';
 import { Severity, SEVERITY_WEIGHT } from './types/report.js';
 
-const VERSION = '1.2.2';
+const VERSION = '1.2.3';
 
 const program = new Command();
 
@@ -724,7 +724,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install GuardGate
-        run: npm install --no-save guardgate@1.2.2
+        run: npm install --no-save guardgate@1.2.3
       - name: Install Playwright (only if running the e2e module)
         run: npx playwright install chromium --with-deps
       - name: Run GuardGate scans

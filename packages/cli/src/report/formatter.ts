@@ -6,7 +6,7 @@
 
 import chalk from 'chalk';
 import type { ScanReport, ModuleResult, Finding } from '../types/report.js';
-import { Severity } from '../types/report.js';
+import { Severity, SEVERITY_WEIGHT } from '../types/report.js';
 
 const SEVERITY_COLORS: Record<Severity, (text: string) => string> = {
   [Severity.CRITICAL]: chalk.bgRed.white.bold,
@@ -87,7 +87,10 @@ function formatModuleResult(result: ModuleResult): void {
   console.log(chalk.gray(`  ${result.findingCount} finding(s):`));
 
   // Show up to 10 findings inline, then summarize the rest
-  const displayFindings = result.findings.slice(0, 10);
+  const sortedFindings = [...result.findings].sort(
+    (a, b) => (SEVERITY_WEIGHT[b.severity] ?? 0) - (SEVERITY_WEIGHT[a.severity] ?? 0)
+  );
+  const displayFindings = sortedFindings.slice(0, 10);
   for (const finding of displayFindings) {
     formatFinding(finding);
   }

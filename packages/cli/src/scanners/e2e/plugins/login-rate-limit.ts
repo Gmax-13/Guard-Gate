@@ -21,6 +21,9 @@ export class LoginRateLimitPlugin implements AssertionPlugin {
   private loginMethod: string = 'POST';
 
   async beforeFlow(context: PluginContext): Promise<void> {
+    this.loginUrl = null;
+    this.loginMethod = 'POST';
+
     // Try to detect the login endpoint from intercepted requests
     context.page.on('request', (request) => {
       const url = request.url();

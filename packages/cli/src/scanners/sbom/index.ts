@@ -15,7 +15,7 @@ import { dirname } from 'node:path';
 import { detectEcosystems } from './detector.js';
 import { batchQueryOsv } from './osv-client.js';
 import { matchVulnerabilities } from './vulnerability-matcher.js';
-import { generateSbom, writeSbom } from './sbom-generator.js';
+import { generateSbom, writeSbom, generateSpdxSbom, writeSpdxSbom } from './sbom-generator.js';
 import { logger } from '../../utils/logger.js';
 
 export class SbomScanner implements Scanner {
@@ -89,8 +89,13 @@ export class SbomScanner implements Scanner {
 
       // Step 3: Generate SBOM
       if (sbomConfig.generateSbom) {
-        const sbom = generateSbom(allDependencies);
-        writeSbom(sbom, config.outputDir);
+        if (sbomConfig.sbomFormat === 'spdx') {
+          const sbom = generateSpdxSbom(allDependencies);
+          writeSpdxSbom(sbom, config.outputDir);
+        } else {
+          const sbom = generateSbom(allDependencies);
+          writeSbom(sbom, config.outputDir);
+        }
       }
 
       // Step 4: Query OSV.dev for vulnerabilities

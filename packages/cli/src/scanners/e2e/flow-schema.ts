@@ -57,6 +57,10 @@ export const flowStepSchema = z.discriminatedUnion('action', [
     description: z.string().optional(),
   }),
   z.object({
+    action: z.literal('clearIntercepted'),
+    description: z.string().optional(),
+  }),
+  z.object({
     action: z.literal('pause'),
     duration: z.number().default(1000),
     description: z.string().optional(),

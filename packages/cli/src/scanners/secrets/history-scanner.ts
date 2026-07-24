@@ -134,6 +134,7 @@ export async function scanHistory(options: HistoryScanOptions): Promise<Finding[
               (f) =>
                 f.ruleId === rule.id &&
                 f.filePath === filePath &&
+                f.commitHash === commit.hash &&
                 f.message.includes(masked),
             );
 

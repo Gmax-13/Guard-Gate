@@ -56,7 +56,7 @@ export function generateSbom(dependencies: Dependency[]): SbomDocument {
       tools: [
         {
           name: 'guardgate',
-          version: '0.1.0',
+          version: '1.2.3',
         },
       ],
     },
@@ -65,7 +65,7 @@ export function generateSbom(dependencies: Dependency[]): SbomDocument {
 }
 
 /**
- * Write an SBOM document to disk.
+ * Write a CycloneDX SBOM document to disk.
  */
 export function writeSbom(sbom: SbomDocument, outputDir: string): string {
   const filePath = join(outputDir, 'guardgate-sbom.json');
@@ -73,11 +73,69 @@ export function writeSbom(sbom: SbomDocument, outputDir: string): string {
   try {
     mkdirSync(dirname(filePath), { recursive: true });
     writeFileSync(filePath, JSON.stringify(sbom, null, 2), 'utf-8');
-    logger.info(`SBOM written to ${filePath}`);
+    logger.info(`CycloneDX SBOM written to ${filePath}`);
     return filePath;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.error(`Failed to write SBOM: ${message}`);
+    logger.error(`Failed to write CycloneDX SBOM: ${message}`);
+    throw err;
+  }
+}
+
+/**
+ * Generate an SPDX 2.3 SBOM document.
+ */
+export function generateSpdxSbom(dependencies: Dependency[]): any {
+  const packages = dependencies.map((dep, index) => {
+    const spdxId = `SPDXRef-Package-${index + 1}`;
+    return {
+      name: dep.name,
+      SPDXID: spdxId,
+      versionInfo: dep.version,
+      downloadLocation: "NOASSERTION",
+      externalRefs: [
+        {
+          referenceCategory: "PACKAGE-MANAGER",
+          referenceType: "purl",
+          referenceLocator: generatePurl(dep)
+        }
+      ]
+    };
+  });
+
+  return {
+    spdxVersion: "SPDX-2.3",
+    dataLicense: "CC0-1.0",
+    SPDXID: "SPDXRef-DOCUMENT",
+    name: "GuardGate-SBOM",
+    documentNamespace: `http://spdx.org/spdxdocs/guardgate-sbom-${Date.now()}`,
+    creationInfo: {
+      creators: ["Tool: GuardGate-1.2.3"],
+      created: new Date().toISOString()
+    },
+    packages,
+    relationships: packages.map(pkg => ({
+      spdxElementId: "SPDXRef-DOCUMENT",
+      relationshipType: "DESCRIBES",
+      relatedSpdxElement: pkg.SPDXID
+    }))
+  };
+}
+
+/**
+ * Write an SPDX 2.3 SBOM document to disk.
+ */
+export function writeSpdxSbom(sbom: any, outputDir: string): string {
+  const filePath = join(outputDir, 'guardgate-sbom.spdx.json');
+
+  try {
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, JSON.stringify(sbom, null, 2), 'utf-8');
+    logger.info(`SPDX SBOM written to ${filePath}`);
+    return filePath;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to write SPDX SBOM: ${message}`);
     throw err;
   }
 }

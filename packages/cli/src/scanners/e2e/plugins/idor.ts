@@ -39,7 +39,7 @@ export class IdorPlugin implements AssertionPlugin {
 
           // Try modifying the ID
           const modifiedId = this.modifyId(originalId);
-          const modifiedUrl = url.replace(originalId, modifiedId);
+          const modifiedUrl = url.substring(0, match.index) + url.substring(match.index).replace(originalId, modifiedId);
 
           try {
             const response = await context.page.goto(modifiedUrl, {

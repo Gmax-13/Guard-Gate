@@ -23,6 +23,12 @@ export class LogoutInvalidationPlugin implements AssertionPlugin {
     secure: boolean;
     sameSite: string;
   }> = [];
+  private protectedUrl: string | null = null;
+
+  async beforeFlow(): Promise<void> {
+    this.preLogoutCookies = [];
+    this.protectedUrl = null;
+  }
 
   async afterStep(context: PluginContext): Promise<AssertionResult[]> {
     // Capture cookies after what looks like a login step
@@ -38,6 +44,7 @@ export class LogoutInvalidationPlugin implements AssertionPlugin {
 
         // Save cookies post-login
         this.preLogoutCookies = [...context.cookies];
+        this.protectedUrl = context.page.url();
       }
     }
 
@@ -105,7 +112,7 @@ export class LogoutInvalidationPlugin implements AssertionPlugin {
       }
 
       // Try to access a protected page with the old cookies
-      const protectedUrl = context.targetUrl + '/profile';
+      const protectedUrl = this.protectedUrl || (context.targetUrl + '/profile');
       const response = await context.page.goto(protectedUrl, {
         waitUntil: 'domcontentloaded',
         timeout: 10000,
@@ -167,9 +174,9 @@ export class LogoutInvalidationPlugin implements AssertionPlugin {
         pluginType: this.type,
         checkId: 'logout-invalidation-error',
         checkName: 'Logout Invalidation — Error',
-        passed: true,
+        passed: false,
         message: 'Could not verify logout invalidation (navigation error)',
-        severity: 'info',
+        severity: 'medium',
       });
     }
 

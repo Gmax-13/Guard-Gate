@@ -20,6 +20,7 @@ export const apiEndpointSchema = z.object({
 
 export const apiFlowSchema = z.object({
   name: z.string(),
+  variables: z.record(z.string(), z.string()).optional(),
   endpoints: z.array(apiEndpointSchema),
 });
 

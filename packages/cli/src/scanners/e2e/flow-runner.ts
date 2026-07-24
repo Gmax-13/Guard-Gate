@@ -103,7 +103,11 @@ export async function runFlow(
       logger.debug(`Step ${i + 1}/${flow.steps.length}: ${stepDesc}`);
 
       try {
-        await executeStep(page, context, step, flow.targetUrl);
+        if (step.action === 'clearIntercepted') {
+          flowContext.clearIntercepted();
+        } else {
+          await executeStep(page, context, step, flow.targetUrl);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         stepError = `Step ${i + 1} (${step.action}) failed: ${message}`;
@@ -183,7 +187,11 @@ async function executeStep(
 ): Promise<void> {
   switch (step.action) {
     case 'goto': {
-      const url = step.url.startsWith('http') ? step.url : `${baseUrl}${step.url}`;
+      let url = step.url;
+      if (!url.startsWith('http')) {
+        const separator = baseUrl.endsWith('/') || url.startsWith('/') ? '' : '/';
+        url = `${baseUrl}${separator}${url}`;
+      }
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       break;
     }
@@ -238,6 +246,11 @@ async function executeStep(
 
     case 'clearCookies': {
       await context.clearCookies();
+      break;
+    }
+
+    case 'clearIntercepted': {
+      // Handled outside of executeStep
       break;
     }
 

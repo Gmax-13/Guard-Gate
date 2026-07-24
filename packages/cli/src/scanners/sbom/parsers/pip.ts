@@ -40,7 +40,44 @@ export class PipParser implements EcosystemParser {
       return this.parseRequirementsTxt(requirements);
     }
 
+    // Try poetry.lock
+    const poetryLock = join(rootDir, 'poetry.lock');
+    if (existsSync(poetryLock)) {
+      return this.parsePoetryLock(poetryLock);
+    }
+
     return { ecosystem: 'pypi', dependencies: [], sourceFile: '' };
+  }
+
+  private parsePoetryLock(lockPath: string): ParseResult {
+    try {
+      const content = readFileSync(lockPath, 'utf-8');
+      const dependencies: Dependency[] = [];
+
+      // Split by [[package]] blocks
+      const blocks = content.split('[[package]]');
+      // Skip the first block (it's before the first package)
+      for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i];
+        const nameMatch = block.match(/^name\s*=\s*"([^"]+)"/m);
+        const versionMatch = block.match(/^version\s*=\s*"([^"]+)"/m);
+        
+        if (nameMatch && versionMatch) {
+          dependencies.push({
+            name: nameMatch[1],
+            version: versionMatch[1],
+            ecosystem: 'pypi',
+            isDirect: true, // Treat as direct for simplicity in lock files without deep dependency tree parsing
+          });
+        }
+      }
+
+      logger.debug(`pip: found ${dependencies.length} dependencies from poetry.lock`);
+      return { ecosystem: 'pypi', dependencies, sourceFile: lockPath };
+    } catch (err) {
+      logger.warn(`Failed to parse poetry.lock: ${err}`);
+      return { ecosystem: 'pypi', dependencies: [], sourceFile: lockPath };
+    }
   }
 
   private parsePipfileLock(lockPath: string): ParseResult {

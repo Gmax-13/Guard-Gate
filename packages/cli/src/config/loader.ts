@@ -57,7 +57,7 @@ export function loadConfig(rootDir: string, configPath?: string): GuardGateConfi
 
   if (!configFile) {
     logger.info('No config file found, using defaults');
-    return DEFAULT_CONFIG;
+    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   }
 
   logger.info(`Loading config from ${configFile}`);
@@ -80,7 +80,7 @@ export function loadConfig(rootDir: string, configPath?: string): GuardGateConfi
         logger.error(`  ${issue.path.join('.')}: ${issue.message}`);
       }
       logger.warn('Falling back to default configuration');
-      return DEFAULT_CONFIG;
+      return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     }
 
     return result.data;
@@ -88,6 +88,6 @@ export function loadConfig(rootDir: string, configPath?: string): GuardGateConfi
     const message = err instanceof Error ? err.message : String(err);
     logger.error(`Failed to read config file: ${message}`);
     logger.warn('Falling back to default configuration');
-    return DEFAULT_CONFIG;
+    return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
   }
 }

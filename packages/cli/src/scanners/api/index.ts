@@ -42,7 +42,25 @@ export class ApiScanner implements Scanner {
     try {
       for (const flowFile of config.flowFiles) {
         const fullPath = resolve(rootDir, flowFile);
-        const flow = parseApiFlow(fullPath);
+        let flow = parseApiFlow(fullPath);
+        if (!flow) continue;
+
+        // Interpolate variables
+        const variables = {
+          ...process.env,
+          ...config.variables,
+          ...flow.variables,
+        };
+        const json = JSON.stringify(flow);
+        const interpolated = json.replace(/\$\{([^}]+)\}/g, (match, varName) => {
+          const value = variables[varName];
+          if (value === undefined) {
+            logger.warn(`Unresolved variable in API flow: ${match}`);
+            return match;
+          }
+          return value.replace(/"/g, '\\"');
+        });
+        flow = JSON.parse(interpolated);
         if (!flow) continue;
 
         logger.info(`Running API flow: ${flow.name}`);

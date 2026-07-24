@@ -73,8 +73,13 @@ export class E2eScanner implements Scanner {
 
           flow = interpolateVariables(flow, e2eConfig.variables);
 
+          // Resolve per-flow plugins
+          const currentPlugins = flow.plugins && flow.plugins.length > 0
+            ? pluginRegistry.getFiltered(flow.plugins)
+            : plugins;
+
           // Run the flow
-          const result = await runFlow(flow, plugins, runnerOptions);
+          const result = await runFlow(flow, currentPlugins, runnerOptions);
 
           // Convert assertion results to findings
           for (const assertion of result.assertionResults) {

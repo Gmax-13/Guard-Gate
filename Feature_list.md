@@ -65,9 +65,9 @@
 - [x] GitLab code-scanning UI compatibility
 
 ### v1.2.0 — Diff-Aware / Baseline Scanning 🚧 *In Progress*
-- [ ] `guardgate scan --baseline <commit>` to only fail on new findings since a reference commit
-- [ ] Suppression of pre-existing findings in legacy codebases
-- [ ] Baseline fingerprinting for finding deduplication
+- [x] `guardgate scan --baseline <commit>` to only fail on new findings since a reference commit
+- [x] Suppression of pre-existing findings in legacy codebases
+- [x] Baseline fingerprinting for finding deduplication
 
 ### v1.3.0 — Real Python AST Support
 - [ ] Tree-sitter-python or Python `ast` module integration for `.py` files

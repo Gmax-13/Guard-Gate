@@ -95,6 +95,8 @@ export const apiConfigSchema = z
     variables: z.record(z.string(), z.string()).default({}),
     /** Timeout for each request in milliseconds */
     timeout: z.number().int().min(1000).default(10000),
+    /** Path to OpenAPI/Swagger specification file */
+    openapiSpec: z.string().optional(),
     /** Severity threshold for failing the scan */
     severityThreshold: severityEnum.optional(),
   })

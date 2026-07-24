@@ -33,6 +33,7 @@ export class SecretsScanner implements Scanner {
         allowlistPatterns: secretsConfig.allowlist,
         entropyThreshold: secretsConfig.entropyThreshold,
         customRules: secretsConfig.customRules,
+        verifySecrets: secretsConfig.verifySecrets,
       });
 
       // Phase 2: Scan git history (if enabled and in a git repo)
@@ -47,6 +48,7 @@ export class SecretsScanner implements Scanner {
             maxCommits: secretsConfig.maxCommits,
             entropyThreshold: secretsConfig.entropyThreshold,
             customRules: secretsConfig.customRules,
+            verifySecrets: secretsConfig.verifySecrets,
           });
         } else {
           logger.info('Not a git repository, skipping history scan');

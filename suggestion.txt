@@ -1,0 +1,159 @@
+Before the generator logic itself — both of these need one prerequisite: your current `assert: {status, plugin, matchBody, notMatchBody}` model can only evaluate a *single* response against a static pattern. Differential SQLi needs to compare *two* responses to each other, and mass-assignment detection needs to check whether a specific JSON key was echoed/persisted, not just regex-match raw text. So the schema needs two additive extensions before the generator can emit anything meaningful. Sketching both together:
+
+## 1. Schema extensions (engine-side, additive — doesn't touch existing single-request flows)
+
+```yaml
+# New optional block per endpoint: differential comparison
+endpoints:
+  - method: "GET"
+    path: "/api/users"
+    query:
+      search: "{{payload}}"          # {{payload}} is substituted per-run
+    differential:
+      ruleId: "sql-injection-blind"
+      severity: "critical"
+      payloads:
+        true: "' OR '1'='1' -- "
+        false: "' AND '1'='2' -- "
+      compare:
+        statusDiffers: true              # true.status != false.status → finding
+        bodyLengthDeltaThreshold: 50      # abs(len(true.body) - len(false.body)) > N → finding
+        bodyHashDiffers: false            # optional strict exact-diff check
+
+# New optional block: structured JSON assertion (for mass assignment, not raw regex)
+endpoints:
+  - method: "PUT"
+    path: "/api/users/{id}"
+    body:
+      name: "Test User"                  # only spec-declared fields
+    massAssignmentProbe:
+      ruleId: "mass-assignment"
+      severity: "high"
+      injectFields:
+        isAdmin: true
+        role: "admin"
+      assert:
+        jsonPathPresent: ["$.isAdmin", "$.role"]   # finding if these keys appear anywhere in the response JSON
+        statusNotIn: [400, 422]                     # AND server didn't reject with a validation error
+```
+
+The runner needs two new execution paths: **(a)** for `differential`, fire the request twice (substitute `true` then `false` into `{{payload}}`, everything else identical) and diff the pair per `compare` rules; **(b)** for `massAssignmentProbe`, parse the response as JSON and do key-path lookups instead of `matchBody` regex. Both are additive — existing single-request flows keep working unchanged.
+
+## 2. Generator: extracting fuzzable targets from the spec
+
+```ts
+interface FuzzTarget {
+  path: string;
+  method: string;
+  location: "query" | "path" | "body";
+  paramName: string;               // or JSON path for body fields
+  type: string;                    // openapi type
+}
+
+function extractFuzzTargets(spec: OpenApiDoc): FuzzTarget[] {
+  const targets: FuzzTarget[] = [];
+
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const method of ["get", "post", "put", "patch", "delete"]) {
+      const op = pathItem[method];
+      if (!op) continue;
+
+      // query/path params — string & unformatted only for v1
+      // (skip format: uuid/date/email — injection there just produces noisy 400s, not signal)
+      for (const p of op.parameters ?? []) {
+        if (p.schema?.type === "string" && !p.schema?.format) {
+          targets.push({ path, method, location: p.in, paramName: p.name, type: "string" });
+        }
+      }
+
+      // request body — top-level string properties only in v1
+      const bodySchema = op.requestBody?.content?.["application/json"]?.schema;
+      if (bodySchema?.properties) {
+        for (const [key, propSchema] of Object.entries(bodySchema.properties)) {
+          if (propSchema.type === "string" && !propSchema.format) {
+            targets.push({ path, method, location: "body", paramName: key, type: "string" });
+          }
+        }
+      }
+    }
+  }
+  return targets;
+}
+```
+
+## 3. Differential SQLi generator
+
+One flow per fuzz target, holding every *other* param at a valid synthesized value (spec `example`/`default`, else type-based dummy) so a 400 doesn't drown the signal in noise:
+
+```ts
+function buildDifferentialSqliFlow(target: FuzzTarget, op: OpenApiOperation): ApiFlowEndpoint {
+  const baseline = synthesizeValidRequest(op);   // fills every param/body field with a valid dummy value
+
+  if (target.location === "query") baseline.query[target.paramName] = "{{payload}}";
+  if (target.location === "path")  baseline.path = baseline.path.replace(`{${target.paramName}}`, "{{payload}}");
+  if (target.location === "body")  baseline.body[target.paramName] = "{{payload}}";
+
+  return {
+    method: target.method,
+    path: target.path,
+    query: baseline.query,
+    headers: baseline.headers,
+    body: baseline.body,
+    differential: {
+      ruleId: "sql-injection-blind",
+      severity: "critical",
+      payloads: { true: "' OR '1'='1' -- ", false: "' AND '1'='2' -- " },
+      compare: { statusDiffers: true, bodyLengthDeltaThreshold: 50 },
+    },
+  };
+}
+```
+
+Skip integers/booleans/formatted strings in v1 — note it as a documented limitation rather than silently under-testing (same lesson from the fail-open bugs: say what you *didn't* check, don't just go quiet on it).
+
+## 4. Mass-assignment generator — with a sharper heuristic than a static field list
+
+Instead of (or in addition to) a hardcoded `isAdmin`/`role` wordlist, cross-reference the **response** schema against the **request** schema for the same resource: any field the API exposes on `GET` but doesn't accept on `POST`/`PUT` is exactly the set mass-assignment testing should target — that's a much stronger, spec-derived signal than guessing field names.
+
+```ts
+function getPrivilegedFieldCandidates(spec: OpenApiDoc, resourcePath: string): Record<string, unknown> {
+  const getSchema  = spec.paths[resourcePath]?.get?.responses?.["200"]?.content?.["application/json"]?.schema;
+  const postSchema = spec.paths[resourcePath]?.post?.requestBody?.content?.["application/json"]?.schema;
+
+  const readableFields = Object.keys(getSchema?.properties ?? {});
+  const writableFields = new Set(Object.keys(postSchema?.properties ?? {}));
+
+  const candidates: Record<string, unknown> = {};
+  for (const field of readableFields) {
+    if (!writableFields.has(field)) {
+      candidates[field] = synthesizeValueForField(getSchema.properties[field]); // e.g. bool→true, string→"admin"
+    }
+  }
+  // fall back to the static wordlist only if the spec-derived set is empty
+  return Object.keys(candidates).length ? candidates : DEFAULT_PRIVILEGED_FIELDS;
+}
+
+function buildMassAssignmentFlow(op: OpenApiOperation, spec: OpenApiDoc): ApiFlowEndpoint {
+  const baseline = synthesizeValidRequest(op);
+  const injectFields = getPrivilegedFieldCandidates(spec, op.path);
+
+  return {
+    method: op.method,
+    path: op.path,
+    body: { ...baseline.body, ...injectFields },
+    massAssignmentProbe: {
+      ruleId: "mass-assignment",
+      severity: "high",
+      injectFields,
+      assert: {
+        jsonPathPresent: Object.keys(injectFields).map(f => `$.${f}`),
+        statusNotIn: [400, 422],
+      },
+    },
+  };
+}
+```
+
+This is the same "prove it from the spec, don't assume" principle as the read/write schema diff — it also means the test's precision scales with how well-documented the API is, which is a fair tradeoff to state up front rather than discover later.
+
+One naming note carried over from before: keep these two ruleIds as `sql-injection-blind` and `mass-assignment` — not `idor`/`bola` anywhere near them, so the report never implies coverage you haven't built yet.

@@ -6,6 +6,7 @@ import { logger } from '../../utils/logger.js';
 export const apiEndpointSchema = z.object({
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
   path: z.string(),
+  query: z.record(z.string(), z.string()).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.any().optional(),
   assert: z
@@ -16,6 +17,29 @@ export const apiEndpointSchema = z.object({
       notMatchBody: z.string().optional(),
     })
     .default({ status: 200 }),
+  differential: z
+    .object({
+      ruleId: z.string(),
+      severity: z.string(),
+      payloads: z.object({ true: z.string(), false: z.string() }),
+      compare: z.object({
+        statusDiffers: z.boolean().optional(),
+        bodyLengthDeltaThreshold: z.number().optional(),
+        bodyHashDiffers: z.boolean().optional(),
+      }),
+    })
+    .optional(),
+  massAssignmentProbe: z
+    .object({
+      ruleId: z.string(),
+      severity: z.string(),
+      injectFields: z.record(z.string(), z.any()),
+      assert: z.object({
+        jsonPathPresent: z.array(z.string()),
+        statusNotIn: z.array(z.number()),
+      }),
+    })
+    .optional(),
 });
 
 export const apiFlowSchema = z.object({

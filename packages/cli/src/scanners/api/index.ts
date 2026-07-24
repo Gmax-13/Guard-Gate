@@ -4,7 +4,9 @@ import { Severity, SEVERITY_WEIGHT, type ModuleResult, type Finding } from '../.
 import type { Scanner, ScanContext } from '../../types/scanner.js';
 import type { ApiConfig } from '../../config/schema.js';
 import { parseApiFlow } from './parser.js';
+import type { ApiFlow } from './parser.js';
 import { runApiEndpoint } from './runner.js';
+import { generateOpenApiFlows } from './openapi-parser.js';
 
 export class ApiScanner implements Scanner {
   readonly name = 'api';
@@ -34,16 +36,30 @@ export class ApiScanner implements Scanner {
       return this.buildResult(true, findings, findingsBySeverity, startTime);
     }
 
-    if (!config.flowFiles || config.flowFiles.length === 0) {
-      logger.warn('No API flow files configured.');
+    if ((!config.flowFiles || config.flowFiles.length === 0) && !config.openapiSpec) {
+      logger.warn('No API flow files or OpenAPI spec configured.');
       return this.buildResult(true, findings, findingsBySeverity, startTime);
     }
 
     try {
-      for (const flowFile of config.flowFiles) {
+      const flowsToRun: ApiFlow[] = [];
+
+      for (const flowFile of config.flowFiles || []) {
         const fullPath = resolve(rootDir, flowFile);
-        let flow = parseApiFlow(fullPath);
-        if (!flow) continue;
+        const flow = parseApiFlow(fullPath);
+        if (flow) flowsToRun.push(flow);
+      }
+
+      if (config.openapiSpec) {
+        const fullPath = resolve(rootDir, config.openapiSpec);
+        const openApiFlow = generateOpenApiFlows(fullPath);
+        if (openApiFlow) {
+          logger.warn('Auth-aware fuzzing (v1.6.0) is not yet implemented. --openapi flows will run unauthenticated and may return uniform 401s on secure endpoints.');
+          flowsToRun.push(openApiFlow);
+        }
+      }
+
+      for (let flow of flowsToRun) {
 
         // Interpolate variables
         const variables = {

@@ -75,14 +75,14 @@
 - [x] Replace the TypeScript-parser-for-everything approach with per-language parsing
 
 ### v1.4.0 — Live Secret Verification
-- [ ] Harmless verification calls for detected secrets (AWS `sts:GetCallerIdentity`, Stripe balance endpoint, GitHub `/user`)
-- [ ] Confirmed active credential vs revoked/expired/test-only classification
-- [ ] `--verify-secrets` CLI flag and config option
+- [x] Harmless verification calls for detected secrets (AWS `sts:GetCallerIdentity`, Stripe balance endpoint, GitHub `/user`)
+- [x] Confirmed active credential vs revoked/expired/test-only classification
+- [x] `--verify-secrets` CLI flag and config option
 
 ### v1.5.0 — OpenAPI/Swagger Import for API Fuzzer
-- [ ] Parse OpenAPI 3.x / Swagger 2.0 specs
-- [ ] Auto-generate fuzz flows for every documented endpoint/parameter
-- [ ] `guardgate scan api --openapi <spec-path>` CLI option
+- [x] Parse OpenAPI 3.x / Swagger 2.0 specs
+- [x] Auto-generate fuzz flows for every documented endpoint/parameter
+- [x] `guardgate scan api --openapi <spec-path>` CLI option
 
 ### v1.6.0 — Auth-Aware API Fuzzing
 - [ ] Bearer token / session cookie support for API fuzzer

@@ -473,9 +473,13 @@ addScanOptions(
 addScanOptions(
   scanCmd
     .command('api')
-    .description('Fuzz backend API endpoints for vulnerabilities (DAST)'),
+    .description('Fuzz backend API endpoints for vulnerabilities (DAST)')
+    .option('--openapi <path>', 'Path to OpenAPI/Swagger specification file')
 ).action(async (options) => {
   const { context, config } = await resolveScanContext(options);
+  if (options.openapi) {
+    config.api.openapiSpec = options.openapi as string;
+  }
   const scanner = await loadScannerModule('api');
   if (!scanner) process.exit(1);
 
@@ -516,6 +520,8 @@ Global Options:
   -s, --severity <level>  Minimum severity threshold to fail
                           (info|low|medium|high|critical)
   --format <format>       Output format (json|console|both|sarif|all)
+  --baseline <ref>        Compare against a baseline git commit to only report new findings
+  --verify-secrets        Dynamically verify detected secrets via API calls
   --verbose               Enable verbose/debug output
   --quiet                 Suppress all output except errors
   -h, --help              display help for command
@@ -577,6 +583,7 @@ baseline: "main"               # OPTIONAL: git ref to diff against — only repo
 
 secrets:
   enabled: true
+  verifySecrets: false         # attempt to verify found secrets via live API calls
   allowlist: []                # glob patterns to exclude from scanning
   scanHistory: true             # also scan git commit history, not just working tree
   maxCommits: 100                # 0 = unlimited
@@ -607,6 +614,7 @@ code:
 api:
   enabled: true
   targetUrl: "http://localhost:3000"
+  openapiSpec: ".guardgate/swagger.yaml" # optional, for dynamic flow generation
   flowFiles:
     - ".guardgate/flows/guardgate_api_login.yml"
   variables: {}                  # key/value pairs available for interpolation inside flow files

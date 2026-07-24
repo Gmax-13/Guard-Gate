@@ -4,20 +4,33 @@ import { Severity } from '../../types/report.js';
 import { randomUUID, createHash } from 'node:crypto';
 import { logger } from '../../utils/logger.js';
 
+export interface AuthState {
+  profileName: string;
+  token: string;
+  inject: {
+    header?: string;
+    prefix?: string;
+    cookie?: string;
+  };
+}
+
 export async function runApiEndpoint(
   endpoint: ApiEndpoint,
   targetUrl: string,
-  timeoutMs: number
+  timeoutMs: number,
+  authStates?: Record<string, AuthState>
 ): Promise<Finding[]> {
   const findings: Finding[] = [];
   
   try {
     if (endpoint.differential) {
-      await runDifferential(endpoint, targetUrl, timeoutMs, findings);
+      await runDifferential(endpoint, targetUrl, timeoutMs, findings, authStates ? Object.values(authStates)[0] : undefined);
     } else if (endpoint.massAssignmentProbe) {
-      await runMassAssignment(endpoint, targetUrl, timeoutMs, findings);
+      await runMassAssignment(endpoint, targetUrl, timeoutMs, findings, authStates ? Object.values(authStates)[0] : undefined);
+    } else if (endpoint.idorCrossTenant) {
+      await runIdorCrossTenant(endpoint, targetUrl, timeoutMs, findings, authStates);
     } else {
-      await runStandard(endpoint, targetUrl, timeoutMs, findings);
+      await runStandard(endpoint, targetUrl, timeoutMs, findings, authStates ? Object.values(authStates)[0] : undefined);
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -51,13 +64,24 @@ function substitutePayload(obj: any, payload: string): any {
   return obj;
 }
 
-async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: number, payload?: string) {
+async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: number, payload?: string, authState?: AuthState) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
   const finalUrl = payload ? substitutePayload(url, payload) : url;
-  const finalHeaders = payload && endpoint.headers ? substitutePayload(endpoint.headers, payload) : endpoint.headers;
+  const finalHeaders = payload && endpoint.headers ? substitutePayload(endpoint.headers, payload) : { ...endpoint.headers };
   const finalBody = payload && endpoint.body ? substitutePayload(endpoint.body, payload) : endpoint.body;
+
+  if (authState) {
+    if (authState.inject.header) {
+      const prefix = authState.inject.prefix || '';
+      finalHeaders[authState.inject.header] = `${prefix}${authState.token}`;
+    }
+    if (authState.inject.cookie) {
+      const existingCookie = finalHeaders['Cookie'] ? `${finalHeaders['Cookie']}; ` : '';
+      finalHeaders['Cookie'] = `${existingCookie}${authState.inject.cookie}=${authState.token}`;
+    }
+  }
 
   try {
     const res = await fetch(finalUrl, {
@@ -74,12 +98,12 @@ async function fetchEndpoint(endpoint: ApiEndpoint, url: string, timeoutMs: numb
   }
 }
 
-async function runDifferential(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[]) {
+async function runDifferential(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
   const diff = endpoint.differential!;
   const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
 
-  const resTrue = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.true);
-  const resFalse = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.false);
+  const resTrue = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.true, authState);
+  const resFalse = await fetchEndpoint(endpoint, url, timeoutMs, diff.payloads.false, authState);
 
   let vulnerable = false;
   let reason = '';
@@ -120,6 +144,40 @@ async function runDifferential(endpoint: ApiEndpoint, targetUrl: string, timeout
   }
 }
 
+async function runIdorCrossTenant(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authStates?: Record<string, AuthState>) {
+  const idor = endpoint.idorCrossTenant!;
+  if (!authStates || !authStates[idor.authProfiles[0]] || !authStates[idor.authProfiles[1]]) {
+    logger.warn(`Missing required auth profiles for IDOR cross-tenant test on ${endpoint.path}`);
+    return;
+  }
+
+  const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
+  const stateA = authStates[idor.authProfiles[0]];
+  const stateB = authStates[idor.authProfiles[1]];
+
+  const resA = await fetchEndpoint(endpoint, url, timeoutMs, undefined, stateA);
+  const resB = await fetchEndpoint(endpoint, url, timeoutMs, undefined, stateB);
+
+  // If both requests succeeded (200-299) for a specific resource, it might be an IDOR
+  // Note: we assume the generated path has a dummy UUID that simulates a private resource
+  if (resA.status >= 200 && resA.status < 300 && resB.status >= 200 && resB.status < 300) {
+    findings.push({
+      id: `api-idor-${idor.ruleId}-${randomUUID()}`,
+      module: 'api',
+      ruleId: idor.ruleId,
+      ruleName: 'Insecure Direct Object Reference (BOLA)',
+      severity: idor.severity as Severity,
+      message: `IDOR detected: Both ${stateA.profileName} and ${stateB.profileName} successfully accessed resource at ${endpoint.path}`,
+      evidence: [
+        { type: 'request', label: `${stateA.profileName} Request`, data: JSON.stringify({ url: resA.requestUrl, body: resA.requestBody }) },
+        { type: 'response', label: `${stateA.profileName} Response (${resA.status})`, data: resA.body.slice(0, 500) },
+        { type: 'request', label: `${stateB.profileName} Request`, data: JSON.stringify({ url: resB.requestUrl, body: resB.requestBody }) },
+        { type: 'response', label: `${stateB.profileName} Response (${resB.status})`, data: resB.body.slice(0, 500) },
+      ],
+    });
+  }
+}
+
 // Very basic JSONPath subset evaluator (only $.key, $.key.subkey, or $['key'])
 function checkJsonPath(obj: any, path: string): boolean {
   try {
@@ -137,11 +195,11 @@ function checkJsonPath(obj: any, path: string): boolean {
   }
 }
 
-async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[]) {
+async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
   const probe = endpoint.massAssignmentProbe!;
   const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
 
-  const res = await fetchEndpoint(endpoint, url, timeoutMs);
+  const res = await fetchEndpoint(endpoint, url, timeoutMs, undefined, authState);
 
   if (probe.assert.statusNotIn && probe.assert.statusNotIn.includes(res.status)) {
     return; // Rejected by validation, safe
@@ -176,9 +234,9 @@ async function runMassAssignment(endpoint: ApiEndpoint, targetUrl: string, timeo
   }
 }
 
-async function runStandard(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[]) {
+async function runStandard(endpoint: ApiEndpoint, targetUrl: string, timeoutMs: number, findings: Finding[], authState?: AuthState) {
   const url = buildUrl(targetUrl, endpoint.path, endpoint.query);
-  const res = await fetchEndpoint(endpoint, url, timeoutMs);
+  const res = await fetchEndpoint(endpoint, url, timeoutMs, undefined, authState);
 
   let vulnerable = false;
   let reason = '';

@@ -85,14 +85,14 @@
 - [x] `guardgate scan api --openapi <spec-path>` CLI option
 
 ### v1.6.0 — Auth-Aware API Fuzzing
-- [ ] Bearer token / session cookie support for API fuzzer
-- [ ] Auth header injection in fuzz flows
-- [ ] Pre-flight login step for acquiring tokens
+- [x] Bearer token / session cookie support for API fuzzer
+- [x] Auth header injection in fuzz flows
+- [x] Pre-flight login step for acquiring tokens
 
 ### v1.7.0 — AI-Generated Remediation Diffs
-- [ ] For each finding, generate a suggested patch using LLM (Groq integration)
-- [ ] "Here's the vulnerable line, here's a suggested fix" in reports
-- [ ] Optional `--remediate` flag to generate fix PRs
+- [x] For each finding, generate a suggested patch using LLM (Groq integration)
+- [x] "Here's the vulnerable line, here's a suggested fix" in reports
+- [x] Optional `--remediate` flag to generate fix PRs
 
 ---
 

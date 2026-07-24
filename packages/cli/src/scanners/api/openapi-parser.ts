@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 import { logger } from '../../utils/logger.js';
 import type { ApiFlow, ApiEndpoint } from './parser.js';
+import type { AuthState } from './runner.js';
 
 type OpenApiDoc = any;
 type OpenApiOperation = any;
@@ -14,7 +15,7 @@ interface FuzzTarget {
   type: string;
 }
 
-export function generateOpenApiFlows(specPath: string): ApiFlow | null {
+export function generateOpenApiFlows(specPath: string, authStates?: Record<string, AuthState>): ApiFlow | null {
   try {
     const content = readFileSync(specPath, 'utf-8');
     const spec = parseYaml(content) as OpenApiDoc;
@@ -44,6 +45,24 @@ export function generateOpenApiFlows(specPath: string): ApiFlow | null {
         const flow = buildMassAssignmentFlow(op, spec, path, method);
         if (flow) {
           endpoints.push(flow);
+        }
+      }
+    }
+
+    // 3. Generate IDOR Cross-Tenant Flows
+    if (authStates && Object.keys(authStates).length >= 2) {
+      const authProfiles = Object.keys(authStates) as [string, string, ...string[]];
+      for (const [path, pathItem] of Object.entries(spec.paths)) {
+        for (const method of ['get', 'put', 'patch', 'delete']) {
+          const op = (pathItem as any)[method];
+          if (!op) continue;
+
+          // If the endpoint has a path parameter (likely an ID), it's a good IDOR candidate
+          const hasPathParam = (op.parameters ?? []).some((p: any) => p.in === 'path');
+          if (hasPathParam) {
+            const flow = buildIdorCrossTenantFlow(op, path, method, authProfiles);
+            endpoints.push(flow);
+          }
         }
       }
     }
@@ -239,6 +258,31 @@ function buildMassAssignmentFlow(op: OpenApiOperation, spec: OpenApiDoc, path: s
         jsonPathPresent: Object.keys(injectFields).map(f => `$.${f}`),
         statusNotIn: [400, 422],
       },
+    },
+  };
+}
+
+function buildIdorCrossTenantFlow(op: OpenApiOperation, path: string, method: string, authProfiles: [string, string, ...string[]]): ApiEndpoint {
+  const baseline = synthesizeValidRequest(op);
+  let resolvedPath = path;
+
+  // Pre-fill path parameters (which acts as the simulated resource ID)
+  for (const p of op.parameters ?? []) {
+    if (p.in === 'path') {
+      resolvedPath = resolvedPath.replace(`{${p.name}}`, String(synthesizeValueForField(p.schema)));
+    }
+  }
+
+  return {
+    method: method.toUpperCase() as any,
+    path: resolvedPath,
+    query: baseline.query,
+    headers: baseline.headers,
+    body: Object.keys(baseline.body).length > 0 ? baseline.body : undefined,
+    idorCrossTenant: {
+      ruleId: 'idor-cross-tenant',
+      severity: 'high',
+      authProfiles: [authProfiles[0], authProfiles[1]],
     },
   };
 }

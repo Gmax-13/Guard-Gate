@@ -33,6 +33,8 @@ import { applyBaseline } from './utils/baseline.js';
 import type { Scanner, ScanContext } from './types/scanner.js';
 import type { ScanReport, ModuleResult } from './types/report.js';
 import { Severity, SEVERITY_WEIGHT } from './types/report.js';
+import { generateRemediations } from './utils/ai.js';
+import { applyRemediations } from './utils/remediator.js';
 
 export const VERSION = '1.2.3';
 
@@ -65,6 +67,7 @@ function addScanOptions(cmd: Command): Command {
     .option('--format <format>', 'Output format (json|console|both|sarif|all)')
     .option('--baseline <ref>', 'Compare against a baseline git commit to only report new findings')
     .option('--verify-secrets', 'Dynamically verify detected secrets via API calls')
+    .option('--remediate', 'Generate AI remediation diffs and automatically create fix branches')
     .option('--verbose', 'Enable verbose/debug output')
     .option('--quiet', 'Suppress all output except errors');
 }
@@ -206,6 +209,17 @@ async function runScanners(
 
   if (config.baseline) {
     await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity, config.outputDir);
+  }
+
+  // AI Remediation
+  const aiConfig = (config as any).ai || {};
+  const shouldRemediate = aiConfig.remediation || (process.argv.includes('--remediate'));
+  
+  if (shouldRemediate) {
+    await generateRemediations(report, aiConfig, context.rootDir);
+    if (process.argv.includes('--remediate')) {
+      applyRemediations(report, context.rootDir);
+    }
   }
 
   // Output the report
@@ -407,6 +421,17 @@ async function runAllPhased(
     await applyBaseline(report, config.baseline, context.rootDir, config.severityThreshold as Severity, config.outputDir);
   }
 
+  // AI Remediation
+  const aiConfig = (config as any).ai || {};
+  const shouldRemediate = aiConfig.remediation || (process.argv.includes('--remediate'));
+  
+  if (shouldRemediate) {
+    await generateRemediations(report, aiConfig, context.rootDir);
+    if (process.argv.includes('--remediate')) {
+      applyRemediations(report, context.rootDir);
+    }
+  }
+
   // Output
   const fmt = config.outputFormat;
   if (fmt === 'console' || fmt === 'both' || fmt === 'all') {
@@ -522,6 +547,7 @@ Global Options:
   --format <format>       Output format (json|console|both|sarif|all)
   --baseline <ref>        Compare against a baseline git commit to only report new findings
   --verify-secrets        Dynamically verify detected secrets via API calls
+  --remediate             Generate AI remediation diffs and automatically create fix branches
   --verbose               Enable verbose/debug output
   --quiet                 Suppress all output except errors
   -h, --help              display help for command
@@ -581,6 +607,11 @@ baseline: "main"               # OPTIONAL: git ref to diff against — only repo
                                # actions/checkout@v4 needs \`with: { fetch-depth: 0 }\`, or this silently falls
                                # back to "everything is new" without erroring.
 
+ai:
+  remediation: false           # Set to true to automatically generate patches via Groq API (requires GROQ_API_KEY)
+  provider: "groq"
+  model: "llama3-70b-8192"
+
 secrets:
   enabled: true
   verifySecrets: false         # attempt to verify found secrets via live API calls
@@ -619,6 +650,17 @@ api:
     - ".guardgate/flows/guardgate_api_login.yml"
   variables: {}                  # key/value pairs available for interpolation inside flow files
   timeout: 10000                 # per-request timeout, ms
+  authProfiles:                  # Multiple profiles can be defined for IDOR/cross-tenant testing
+    userA:
+      login:
+        method: "POST"
+        path: "/api/login"
+        body: { username: "userA", password: "password" }
+      extract:
+        jsonPath: "$.token"
+      inject:
+        header: "Authorization"
+        prefix: "Bearer "
 
 e2e:
   enabled: true

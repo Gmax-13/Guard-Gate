@@ -65,6 +65,10 @@ export interface Finding {
   fingerprint?: string;
   /** Baseline status: 'new' = introduced since baseline, 'baseline' = pre-existing */
   baselineStatus?: 'new' | 'baseline';
+  /** AI-generated unified diff patch to fix the vulnerability */
+  remediationPatch?: string;
+  /** AI-generated explanation of the fix */
+  remediationExplanation?: string;
 }
 
 /** Result from a single scanner module. */

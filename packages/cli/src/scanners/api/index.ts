@@ -6,7 +6,24 @@ import type { ApiConfig } from '../../config/schema.js';
 import { parseApiFlow } from './parser.js';
 import type { ApiFlow } from './parser.js';
 import { runApiEndpoint } from './runner.js';
+import type { AuthState } from './runner.js';
 import { generateOpenApiFlows } from './openapi-parser.js';
+
+// Helper for checkJsonPath (duplicate from runner.js or extract to utils later)
+function checkJsonPathVal(obj: any, path: string): any {
+  try {
+    let current = obj;
+    const parts = path.replace(/^\$\.?/, '').replace(/\[['"]/g, '.').replace(/['"]\]/g, '').split('.');
+    for (const part of parts) {
+      if (!part) continue;
+      if (current === undefined || current === null) return undefined;
+      current = current[part];
+    }
+    return current;
+  } catch {
+    return undefined;
+  }
+}
 
 export class ApiScanner implements Scanner {
   readonly name = 'api';
@@ -50,11 +67,46 @@ export class ApiScanner implements Scanner {
         if (flow) flowsToRun.push(flow);
       }
 
+      const authStates: Record<string, AuthState> = {};
+      if (config.authProfiles) {
+        logger.info(`Authenticating ${Object.keys(config.authProfiles).length} auth profiles...`);
+        for (const [profileName, profile] of Object.entries(config.authProfiles)) {
+          try {
+            const url = `${config.targetUrl.replace(/\/$/, '')}${profile.login.path.startsWith('/') ? '' : '/'}${profile.login.path}`;
+            const res = await fetch(url, {
+              method: profile.login.method,
+              headers: profile.login.headers,
+              body: profile.login.body ? (typeof profile.login.body === 'string' ? profile.login.body : JSON.stringify(profile.login.body)) : undefined,
+            });
+            
+            let token: string | undefined;
+            if (profile.extract.header) {
+              token = res.headers.get(profile.extract.header) || undefined;
+            } else if (profile.extract.jsonPath) {
+              const body = await res.json();
+              token = checkJsonPathVal(body, profile.extract.jsonPath);
+            }
+
+            if (token) {
+              authStates[profileName] = {
+                profileName,
+                token,
+                inject: profile.inject
+              };
+              logger.info(`Successfully authenticated profile: ${profileName}`);
+            } else {
+              logger.warn(`Failed to extract token for profile: ${profileName}`);
+            }
+          } catch (err) {
+            logger.warn(`Failed to authenticate profile ${profileName}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      }
+
       if (config.openapiSpec) {
         const fullPath = resolve(rootDir, config.openapiSpec);
-        const openApiFlow = generateOpenApiFlows(fullPath);
+        const openApiFlow = generateOpenApiFlows(fullPath, authStates);
         if (openApiFlow) {
-          logger.warn('Auth-aware fuzzing (v1.6.0) is not yet implemented. --openapi flows will run unauthenticated and may return uniform 401s on secure endpoints.');
           flowsToRun.push(openApiFlow);
         }
       }
@@ -82,7 +134,7 @@ export class ApiScanner implements Scanner {
         logger.info(`Running API flow: ${flow.name}`);
         
         for (const endpoint of flow.endpoints) {
-          const endpointFindings = await runApiEndpoint(endpoint, config.targetUrl, config.timeout);
+          const endpointFindings = await runApiEndpoint(endpoint, config.targetUrl, config.timeout, authStates);
           for (const f of endpointFindings) {
             findingsBySeverity[f.severity]++;
             findings.push(f);

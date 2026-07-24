@@ -40,6 +40,13 @@ export const apiEndpointSchema = z.object({
       }),
     })
     .optional(),
+  idorCrossTenant: z
+    .object({
+      ruleId: z.string(),
+      severity: z.string(),
+      authProfiles: z.tuple([z.string(), z.string()]),
+    })
+    .optional(),
 });
 
 export const apiFlowSchema = z.object({

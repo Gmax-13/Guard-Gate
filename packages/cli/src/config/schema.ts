@@ -97,6 +97,27 @@ export const apiConfigSchema = z
     timeout: z.number().int().min(1000).default(10000),
     /** Path to OpenAPI/Swagger specification file */
     openapiSpec: z.string().optional(),
+    /** Auth profiles for pre-flight authentication and token injection */
+    authProfiles: z.record(
+      z.string(),
+      z.object({
+        login: z.object({
+          method: z.enum(['GET', 'POST', 'PUT']).default('POST'),
+          path: z.string(),
+          headers: z.record(z.string(), z.string()).optional(),
+          body: z.any().optional(),
+        }),
+        extract: z.object({
+          jsonPath: z.string().optional(),
+          header: z.string().optional(),
+        }),
+        inject: z.object({
+          header: z.string().optional(),
+          prefix: z.string().optional(),
+          cookie: z.string().optional(),
+        }),
+      })
+    ).optional(),
     /** Severity threshold for failing the scan */
     severityThreshold: severityEnum.optional(),
   })
@@ -129,6 +150,15 @@ export const guardgateConfigSchema = z
     outputFormat: z.enum(['json', 'console', 'both', 'sarif', 'all']).default('both'),
     /** Baseline git ref for diff-aware scanning (e.g., 'main', 'HEAD~3', commit SHA) */
     baseline: z.string().optional(),
+    /** AI remediation configuration */
+    ai: z.object({
+      /** Enable AI remediation diffs */
+      remediation: z.boolean().default(false),
+      /** AI Provider (currently only 'groq' is supported) */
+      provider: z.enum(['groq']).default('groq'),
+      /** Groq model to use */
+      model: z.string().default('llama3-70b-8192'),
+    }).default({}),
     /** Module-specific configuration */
     secrets: secretsConfigSchema,
     sbom: sbomConfigSchema,

@@ -36,7 +36,7 @@ import { Severity, SEVERITY_WEIGHT } from './types/report.js';
 import { generateRemediations } from './utils/ai.js';
 import { applyRemediations } from './utils/remediator.js';
 
-export const VERSION = '1.2.3';
+export const VERSION = '1.7.1';
 
 const program = new Command();
 
@@ -778,7 +778,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install GuardGate
-        run: npm install --no-save guardgate@1.2.3
+        run: npm install --no-save guardgate@1.7.1
       - name: Install Playwright (only if running the e2e module)
         run: npx playwright install chromium --with-deps
       - name: Run GuardGate scans

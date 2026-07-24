@@ -78,7 +78,7 @@ Generate the unified diff and explanation.`;
           continue;
         }
 
-        const data = await res.json();
+        const data = await res.json() as any;
         const content = data.choices[0]?.message?.content || '';
 
         const diffMatch = content.match(/```diff\n([\s\S]*?)```/);

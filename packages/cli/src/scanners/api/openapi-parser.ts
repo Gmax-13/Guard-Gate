@@ -18,7 +18,7 @@ interface FuzzTarget {
 export function generateOpenApiFlows(specPath: string, authStates?: Record<string, AuthState>): ApiFlow | null {
   try {
     const content = readFileSync(specPath, 'utf-8');
-    const spec = parseYaml(content) as OpenApiDoc;
+    let spec = parseYaml(content) as OpenApiDoc;
 
     if (!spec || !spec.paths) {
       logger.error(`Invalid OpenAPI spec at ${specPath}`);
@@ -202,6 +202,7 @@ function buildDifferentialSqliFlow(target: FuzzTarget, op: OpenApiOperation): Ap
     query: baseline.query,
     headers: baseline.headers,
     body: Object.keys(baseline.body).length > 0 ? baseline.body : undefined,
+    assert: {},
     differential: {
       ruleId: 'sql-injection-blind',
       severity: 'critical',
@@ -250,6 +251,7 @@ function buildMassAssignmentFlow(op: OpenApiOperation, spec: OpenApiDoc, path: s
     query: baseline.query,
     headers: baseline.headers,
     body: { ...baseline.body, ...injectFields },
+    assert: {},
     massAssignmentProbe: {
       ruleId: 'mass-assignment',
       severity: 'high',
@@ -279,6 +281,7 @@ function buildIdorCrossTenantFlow(op: OpenApiOperation, path: string, method: st
     query: baseline.query,
     headers: baseline.headers,
     body: Object.keys(baseline.body).length > 0 ? baseline.body : undefined,
+    assert: {},
     idorCrossTenant: {
       ruleId: 'idor-cross-tenant',
       severity: 'high',

@@ -10,8 +10,14 @@ export const DEFAULT_CONFIG: GuardGateConfig = {
   severityThreshold: 'high',
   outputDir: '.guardgate',
   outputFormat: 'both',
+  ai: {
+    remediation: false,
+    provider: 'groq',
+    model: 'llama3-70b-8192',
+  },
   secrets: {
     enabled: true,
+    verifySecrets: false,
     allowlist: [
       '*.env.example',
       '*.test.*',

@@ -1,7 +1,7 @@
 {
   "name": "guardgate",
-  "version": "1.2.3",
-  "description": "GuardGate CLI — secrets scanning, SBOM/CVE tracking, and security E2E testing",
+  "version": "1.7.1",
+  "description": "Security scanner for secrets, SBOM, and security E2E testing",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -8,7 +8,7 @@ branding:
 
 inputs:
   guardgate-version:
-    description: 'Version of guardgate to install from npm (defaults to latest — pin this for a reproducible security gate, e.g. "1.2.3")'
+    description: 'Version of guardgate to install from npm (defaults to latest — pin this for a reproducible security gate, e.g. "1.7.1")'
     required: false
     default: 'latest'
   severity-threshold:

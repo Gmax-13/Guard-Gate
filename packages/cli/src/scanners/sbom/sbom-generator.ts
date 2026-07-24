@@ -8,6 +8,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { Dependency, SbomDocument, SbomComponent } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { VERSION } from '../../index.js';
 
 /** Map ecosystem names to PURL types */
 const PURL_TYPES: Record<string, string> = {
@@ -56,7 +57,7 @@ export function generateSbom(dependencies: Dependency[]): SbomDocument {
       tools: [
         {
           name: 'guardgate',
-          version: '1.2.3',
+          version: VERSION,
         },
       ],
     },
@@ -110,7 +111,7 @@ export function generateSpdxSbom(dependencies: Dependency[]): any {
     name: "GuardGate-SBOM",
     documentNamespace: `http://spdx.org/spdxdocs/guardgate-sbom-${Date.now()}`,
     creationInfo: {
-      creators: ["Tool: GuardGate-1.2.3"],
+      creators: [`Tool: GuardGate-${VERSION}`],
       created: new Date().toISOString()
     },
     packages,

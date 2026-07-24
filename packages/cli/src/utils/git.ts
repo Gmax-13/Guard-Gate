@@ -117,8 +117,9 @@ export async function getCommitDiff(dir: string, commitHash: string): Promise<st
     // First commit won't have a parent
     try {
       const git = createGit(dir);
-      return await git.diff([
-        '--root',
+      return await git.raw([
+        'show',
+        '--format=',
         commitHash,
       ]);
     } catch {
